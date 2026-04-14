@@ -50,10 +50,10 @@ async function redirectToMirror() {
 
         const resp = await fetch(`${url}/health`, {
           signal: controller.signal,
-          mode: "no-cors",
         });
         clearTimeout(timeout);
 
+        if (!resp.ok) throw new Error("Mirror unhealthy");
         return url;
       })
   );

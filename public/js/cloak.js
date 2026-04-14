@@ -61,17 +61,22 @@ export function launchAboutBlankCloak() {
     return;
   }
 
+  const cloak = CLOAKS[currentCloak];
+  const title = (cloak?.title || "Google").replace(/[<>&"']/g, "");
+  const favicon = (cloak?.favicon || "https://www.google.com/favicon.ico").replace(/[<>&"']/g, "");
+  const src = location.href.replace(/"/g, "&quot;");
+
   const doc = popup.document;
   doc.open();
   doc.write(`<!DOCTYPE html>
 <html>
 <head>
-  <title>${CLOAKS[currentCloak]?.title || "Google"}</title>
-  <link rel="icon" href="${CLOAKS[currentCloak]?.favicon || "https://www.google.com/favicon.ico"}" />
+  <title>${title}</title>
+  <link rel="icon" href="${favicon}" />
   <style>body{margin:0;overflow:hidden}iframe{width:100vw;height:100vh;border:none}</style>
 </head>
 <body>
-  <iframe src="${location.href}"></iframe>
+  <iframe src="${src}"></iframe>
 </body>
 </html>`);
   doc.close();

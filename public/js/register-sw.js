@@ -16,18 +16,26 @@ export async function registerSW() {
     throw new Error("Your browser doesn't support service workers.");
   }
 
-  // Check if existing SW needs updating
   const existing = await navigator.serviceWorker.getRegistration();
   if (existing) {
-    // Force update check
     existing.update();
+    // Wait for the SW to be ready (handles page refresh edge case)
+    await navigator.serviceWorker.ready;
     swRegistered = true;
     return true;
   }
 
-  await navigator.serviceWorker.register(SW_PATH, { scope: "/" });
+  // First registration — register and wait for activation
+  const reg = await navigator.serviceWorker.register(SW_PATH, { scope: "/" });
+  await new Promise((resolve) => {
+    const sw = reg.installing || reg.waiting || reg.active;
+    if (sw.state === "activated") return resolve();
+    sw.addEventListener("statechange", () => {
+      if (sw.state === "activated") resolve();
+    });
+  });
   swRegistered = true;
-  return false; // first registration — may need reload
+  return true;
 }
 
 // Check if SW version matches server version, prompt refresh if stale

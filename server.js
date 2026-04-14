@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import express from "express";
 import compression from "compression";
+import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { server as wisp, logging } from "@mercuryworkshop/wisp-js/server";
 import { scramjetPath } from "@mercuryworkshop/scramjet/path";
@@ -22,7 +23,15 @@ Object.assign(wisp.options, config.wisp);
 // --- Express app ---
 const app = express();
 
-// Security headers — COEP/COOP required for SharedArrayBuffer (bare-mux needs it)
+// Security headers via helmet (disabling some that conflict with proxy operation)
+app.use(helmet({
+  contentSecurityPolicy: false,     // CSP breaks proxied content
+  crossOriginEmbedderPolicy: false, // We set COEP manually below
+  crossOriginOpenerPolicy: false,   // We set COOP manually below
+  crossOriginResourcePolicy: false, // Must allow cross-origin for proxy
+}));
+
+// COEP/COOP required for SharedArrayBuffer (bare-mux needs it)
 app.use((_req, res, next) => {
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
   res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");

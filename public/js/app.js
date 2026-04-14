@@ -73,23 +73,32 @@ async function init() {
 
 // --- Scramjet Setup ---
 function initScramjet() {
+  if (typeof $scramjetLoadController !== "function") {
+    console.error("Scramjet failed to load. Check that scramjet.all.js is accessible.");
+    return;
+  }
+
   const wispUrl =
     (location.protocol === "https:" ? "wss" : "ws") +
     "://" + location.host + config.wispPath;
 
-  const { ScramjetController } = $scramjetLoadController();
+  try {
+    const { ScramjetController } = $scramjetLoadController();
 
-  scramjet = new ScramjetController({
-    files: {
-      wasm: config.proxyPrefix + "scramjet.wasm.wasm",
-      all: config.proxyPrefix + "scramjet.all.js",
-      sync: config.proxyPrefix + "scramjet.sync.js",
-    },
-    wisp: wispUrl,
-  });
+    scramjet = new ScramjetController({
+      files: {
+        wasm: config.proxyPrefix + "scramjet.wasm.wasm",
+        all: config.proxyPrefix + "scramjet.all.js",
+        sync: config.proxyPrefix + "scramjet.sync.js",
+      },
+      wisp: wispUrl,
+    });
 
-  scramjet.init();
-  markTransportReady("epoxy");
+    scramjet.init();
+    markTransportReady("epoxy");
+  } catch (err) {
+    console.error("Scramjet initialization failed:", err);
+  }
 }
 
 // --- Navigation ---
@@ -98,14 +107,15 @@ async function navigateTo(url) {
   searchError.hidden = true;
 
   try {
-    const existed = await registerSW();
-    if (!existed) {
-      // First SW registration — need a reload for it to take control
-      setTimeout(() => window.location.reload(), 500);
-      return;
-    }
+    await registerSW();
   } catch (err) {
     searchError.textContent = err.message;
+    searchError.hidden = false;
+    return;
+  }
+
+  if (!scramjet) {
+    searchError.textContent = "Proxy engine failed to load. Try refreshing the page.";
     searchError.hidden = false;
     return;
   }
@@ -127,13 +137,15 @@ async function navigateTo(url) {
 
   // Encode URL through Scramjet
   const encodedUrl = scramjet.encodeUrl(resolved);
-  frame.src = encodedUrl;
 
   // Show CAPTCHA toast if navigating to a site that commonly triggers them
   const captchaSites = ["google.com", "youtube.com", "discord.com", "roblox.com"];
   if (captchaSites.some((s) => resolved.includes(s))) {
-    showCaptchaToast();
+    // Delay toast so it appears after the frame starts loading, not before
+    setTimeout(() => showCaptchaToast(), 1500);
   }
+
+  frame.src = encodedUrl;
 }
 
 function goHome() {
@@ -194,6 +206,15 @@ function wirePanels() {
       const panelId = btn.dataset.close;
       closePanel(panelId);
     });
+  });
+
+  // Close panel by clicking outside it
+  document.addEventListener("click", (e) => {
+    const openPanel = document.querySelector(".side-panel.open");
+    if (!openPanel) return;
+    // If click is inside the panel or on a topbar button, ignore
+    if (openPanel.contains(e.target) || e.target.closest(".topbar-btn")) return;
+    closePanel(openPanel.id);
   });
 }
 
@@ -451,7 +472,15 @@ function showToast(message) {
 
   const toast = document.createElement("div");
   toast.className = "toast dynamic";
-  toast.innerHTML = `${message} <button class="toast-close" onclick="this.parentElement.remove()">✕</button>`;
+
+  const text = document.createTextNode(message + " ");
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "toast-close";
+  closeBtn.textContent = "✕";
+  closeBtn.addEventListener("click", () => toast.remove());
+
+  toast.appendChild(text);
+  toast.appendChild(closeBtn);
   document.body.appendChild(toast);
 
   setTimeout(() => toast.remove(), 8000);
