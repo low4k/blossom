@@ -80,7 +80,7 @@ app.get("/login", (_req, res) => {
 // --- Auth middleware: everything below requires login ---
 app.use((req, res, next) => {
   // Allow unauthenticated access to static assets needed by login page
-  const publicPaths = ["/styles.css", "/login.html"];
+  const publicPaths = ["/styles.css", "/login.html", "/diag.html"];
   if (publicPaths.some((p) => req.path === p)) return next();
 
   // Allow scramjet/epoxy/baremux static assets (needed by SW after auth)

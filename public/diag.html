@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Blossom Diagnostics</title>
+  <style>
+    body { background: #111; color: #eee; font-family: monospace; padding: 2em; }
+    .ok { color: #4f4; }
+    .fail { color: #f44; }
+    .warn { color: #fa0; }
+    .info { color: #4af; }
+    #log { white-space: pre-wrap; line-height: 1.8; }
+    h1 { color: #e8a0bf; }
+    button { padding: 8px 16px; margin: 8px 4px; cursor: pointer; background: #333; color: #eee; border: 1px solid #555; border-radius: 4px; }
+    button:hover { background: #444; }
+  </style>
+</head>
+<body>
+  <h1>Blossom Diagnostics</h1>
+  <div id="log"></div>
+  <br/>
+  <button onclick="runAll()">Re-run All Tests</button>
+  <button onclick="testProxy()">Test Proxy Navigation</button>
+  <script>
+    const log = document.getElementById("log");
+
+    function out(cls, msg) {
+      const d = document.createElement("div");
+      d.className = cls;
+      d.textContent = msg;
+      log.appendChild(d);
+    }
+    function ok(m) { out("ok", "✓ " + m); }
+    function fail(m) { out("fail", "✗ " + m); }
+    function warn(m) { out("warn", "⚠ " + m); }
+    function info(m) { out("info", "ℹ " + m); }
+
+    async function runAll() {
+      log.innerHTML = "";
+      info("Running diagnostics...\n");
+
+      // 1. Cross-origin isolation
+      info("=== Cross-Origin Isolation ===");
+      if (crossOriginIsolated) {
+        ok("crossOriginIsolated = true (SharedArrayBuffer available)");
+      } else {
+        fail("crossOriginIsolated = false — SharedArrayBuffer NOT available");
+        info("  COOP header needed: Cross-Origin-Opener-Policy: same-origin");
+        info("  COEP header needed: Cross-Origin-Embedder-Policy: credentialless (or require-corp)");
+      }
+
+      // 2. SharedArrayBuffer
+      info("\n=== SharedArrayBuffer ===");
+      if (typeof SharedArrayBuffer !== "undefined") {
+        ok("SharedArrayBuffer is available");
+      } else {
+        fail("SharedArrayBuffer is NOT available — BareMux will not work");
+      }
+
+      // 3. Service Worker support
+      info("\n=== Service Worker ===");
+      if (!navigator.serviceWorker) {
+        fail("navigator.serviceWorker is undefined — SW not supported (need HTTPS?)");
+        return;
+      }
+      ok("navigator.serviceWorker exists");
+
+      // Check registrations
+      const regs = await navigator.serviceWorker.getRegistrations();
+      info("  Registered SWs: " + regs.length);
+      for (const r of regs) {
+        info("    scope: " + r.scope + " active: " + !!r.active + " waiting: " + !!r.waiting + " installing: " + !!r.installing);
+      }
+
+      // Check controller
+      if (navigator.serviceWorker.controller) {
+        ok("SW controller is set: " + navigator.serviceWorker.controller.scriptURL);
+      } else {
+        fail("SW controller is NULL — SW is not controlling this page!");
+        warn("  This means proxy requests will bypass the SW and hit the server directly");
+        warn("  The SW may need clients.claim() or the page may need a reload");
+      }
+
+      // Try to register
+      info("\n  Attempting SW registration...");
+      try {
+        const reg = await navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" });
+        ok("SW registered: scope=" + reg.scope);
+        if (reg.active) ok("  SW is active");
+        if (reg.waiting) warn("  SW is waiting (new version pending)");
+        if (reg.installing) info("  SW is installing...");
+      } catch (e) {
+        fail("SW registration failed: " + e.message);
+      }
+
+      // Wait for ready
+      try {
+        const readyReg = await Promise.race([
+          navigator.serviceWorker.ready,
+          new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 5000))
+        ]);
+        ok("navigator.serviceWorker.ready resolved");
+      } catch (e) {
+        fail("navigator.serviceWorker.ready failed/timeout: " + e.message);
+      }
+
+      // Re-check controller after registration
+      if (!navigator.serviceWorker.controller) {
+        info("  Waiting for controller...");
+        try {
+          await Promise.race([
+            new Promise(r => navigator.serviceWorker.addEventListener("controllerchange", r, { once: true })),
+            new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 3000))
+          ]);
+          if (navigator.serviceWorker.controller) {
+            ok("  Controller now set after waiting: " + navigator.serviceWorker.controller.scriptURL);
+          } else {
+            fail("  Controller still null after controllerchange event");
+          }
+        } catch {
+          fail("  Controller never set (timeout 3s) — SW not claiming this page");
+        }
+      }
+
+      // 4. Config
+      info("\n=== Server Config ===");
+      let cfg;
+      try {
+        const r = await fetch("/blossom-config.json");
+        info("  Status: " + r.status + " " + r.statusText);
+        info("  Content-Type: " + r.headers.get("content-type"));
+        const text = await r.text();
+        try {
+          cfg = JSON.parse(text);
+          ok("Config loaded successfully");
+          info("  proxyPrefix: " + cfg.proxyPrefix);
+          info("  epoxyPrefix: " + cfg.epoxyPrefix);
+          info("  baremuxPrefix: " + cfg.baremuxPrefix);
+          info("  wispPath: " + cfg.wispPath);
+          info("  scramjetPrefix: " + cfg.scramjetPrefix);
+          info("  version: " + cfg.version);
+          info("  user: " + (cfg.user ? cfg.user.displayName + " (" + cfg.user.role + ")" : "null"));
+        } catch (e) {
+          fail("Config response is not valid JSON");
+          info("  Body (first 200 chars): " + text.substring(0, 200));
+        }
+      } catch (e) {
+        fail("Config fetch failed: " + e.message);
+      }
+
+      // 5. Scramjet
+      info("\n=== Scramjet ===");
+      if (typeof $scramjetLoadController === "function") {
+        ok("$scramjetLoadController is available");
+        try {
+          const { ScramjetController } = $scramjetLoadController();
+          ok("ScramjetController loaded");
+
+          const prefix = cfg?.proxyPrefix || "/assets/wasm/";
+          const scramjetPrefix = cfg?.scramjetPrefix || "/~/";
+          const sc = new ScramjetController({
+            prefix: scramjetPrefix,
+            files: {
+              wasm: prefix + "scramjet.wasm.wasm",
+              all: prefix + "scramjet.all.js",
+              sync: prefix + "scramjet.sync.js",
+            }
+          });
+          ok("ScramjetController created");
+
+          try {
+            await sc.init();
+            ok("scramjet.init() completed");
+          } catch (e) {
+            fail("scramjet.init() failed: " + e.message);
+            info("  Trying to delete $scramjet IDB and retry...");
+            await new Promise(r => { const req = indexedDB.deleteDatabase("$scramjet"); req.onsuccess = r; req.onerror = r; req.onblocked = r; });
+            try {
+              await sc.init();
+              ok("scramjet.init() succeeded after IDB cleanup");
+            } catch (e2) {
+              fail("scramjet.init() still fails after IDB cleanup: " + e2.message);
+            }
+          }
+        } catch (e) {
+          fail("ScramjetController creation failed: " + e.message);
+        }
+      } else {
+        fail("$scramjetLoadController is NOT available — scramjet.all.js not loaded?");
+        if (cfg) {
+          info("  Trying to load: " + cfg.proxyPrefix + "scramjet.all.js");
+          try {
+            const r = await fetch(cfg.proxyPrefix + "scramjet.all.js");
+            info("  Fetch status: " + r.status + " type: " + r.headers.get("content-type"));
+            if (r.headers.get("content-type")?.includes("html")) {
+              fail("  Got HTML instead of JavaScript! Static file serving is broken for this path.");
+            }
+          } catch (e) {
+            fail("  Fetch failed: " + e.message);
+          }
+        }
+      }
+
+      // 6. BareMux
+      info("\n=== BareMux ===");
+      if (typeof BareMux !== "undefined") {
+        ok("BareMux global is available");
+        if (typeof BareMux.BareMuxConnection === "function") {
+          ok("BareMux v2 API (BareMuxConnection) found");
+        } else {
+          fail("BareMux.BareMuxConnection not found — wrong version?");
+          info("  BareMux keys: " + Object.keys(BareMux).join(", "));
+        }
+      } else {
+        fail("BareMux global is NOT available — index.js not loaded?");
+        if (cfg) {
+          info("  Trying to load: " + cfg.baremuxPrefix + "index.js");
+          try {
+            const r = await fetch(cfg.baremuxPrefix + "index.js");
+            info("  Fetch status: " + r.status + " type: " + r.headers.get("content-type"));
+            if (r.headers.get("content-type")?.includes("html")) {
+              fail("  Got HTML instead of JavaScript! Static file serving is broken for this path.");
+            }
+          } catch (e) {
+            fail("  Fetch failed: " + e.message);
+          }
+        }
+      }
+
+      // 7. SharedWorker
+      info("\n=== SharedWorker ===");
+      if (typeof SharedWorker !== "undefined") {
+        ok("SharedWorker is available");
+        if (cfg) {
+          try {
+            const sw = new SharedWorker(cfg.baremuxPrefix + "worker.js", "bare-mux-worker");
+            ok("SharedWorker created: " + cfg.baremuxPrefix + "worker.js");
+            // Test if it responds
+            const mc = new MessageChannel();
+            const pong = new Promise((resolve, reject) => {
+              mc.port1.onmessage = (e) => { resolve(e.data); };
+              setTimeout(() => reject(new Error("timeout")), 3000);
+            });
+            sw.port.postMessage({ message: { type: "ping" }, port: mc.port2 }, [mc.port2]);
+            try {
+              const data = await pong;
+              ok("SharedWorker responds: " + JSON.stringify(data));
+            } catch (e) {
+              warn("SharedWorker did not respond to ping within 3s: " + e.message);
+            }
+          } catch (e) {
+            fail("SharedWorker creation failed: " + e.message);
+          }
+        }
+      } else {
+        fail("SharedWorker is NOT available — BareMux requires it");
+      }
+
+      // 8. Transport test
+      info("\n=== Transport ===");
+      if (typeof BareMux !== "undefined" && cfg) {
+        try {
+          const bmPrefix = cfg.baremuxPrefix || "/assets/worker/";
+          const epPrefix = cfg.epoxyPrefix || "/assets/net/";
+          const conn = new BareMux.BareMuxConnection(bmPrefix + "worker.js");
+          ok("BareMuxConnection created");
+
+          const wispUrl = (location.protocol === "https:" ? "wss" : "ws") + "://" + location.host + (cfg.wispPath || "/ws/");
+          info("  Wisp URL: " + wispUrl);
+          info("  Transport module: " + epPrefix + "index.mjs");
+
+          try {
+            await conn.setTransport(epPrefix + "index.mjs", [{ wisp: wispUrl }]);
+            ok("Transport set successfully (epoxy → wisp)");
+          } catch (e) {
+            fail("setTransport failed: " + e.message);
+          }
+
+          try {
+            const t = await conn.getTransport();
+            ok("Current transport: " + t);
+          } catch (e) {
+            fail("getTransport failed: " + e.message);
+          }
+        } catch (e) {
+          fail("BareMux connection failed: " + e.message);
+        }
+      } else {
+        warn("Skipping transport test (BareMux not available or config missing)");
+      }
+
+      // 9. WebSocket connectivity
+      info("\n=== WebSocket Connectivity ===");
+      const wsUrl = (location.protocol === "https:" ? "wss" : "ws") + "://" + location.host + (cfg?.wispPath || "/ws/");
+      try {
+        const ws = new WebSocket(wsUrl);
+        const result = await new Promise((resolve, reject) => {
+          ws.onopen = () => { ws.close(); resolve("connected"); };
+          ws.onerror = () => reject(new Error("WebSocket error"));
+          setTimeout(() => { ws.close(); reject(new Error("timeout")); }, 5000);
+        });
+        ok("WebSocket connects to " + wsUrl);
+      } catch (e) {
+        fail("WebSocket connection failed: " + e.message);
+        warn("  This means the wisp proxy transport cannot work");
+      }
+
+      // 10. IDB check
+      info("\n=== IndexedDB ===");
+      try {
+        if (indexedDB.databases) {
+          const dbs = await indexedDB.databases();
+          info("  Databases: " + (dbs.length ? dbs.map(d => d.name + "(v" + d.version + ")").join(", ") : "none"));
+        } else {
+          info("  indexedDB.databases() not supported (Firefox)");
+        }
+        // Check $scramjet DB
+        const req = indexedDB.open("$scramjet", 1);
+        await new Promise((resolve, reject) => {
+          req.onsuccess = () => {
+            const db = req.result;
+            const stores = Array.from(db.objectStoreNames);
+            if (stores.length > 0) {
+              ok("$scramjet DB has stores: " + stores.join(", "));
+            } else {
+              warn("$scramjet DB exists but has NO stores (stale DB)");
+            }
+            db.close();
+            resolve();
+          };
+          req.onerror = () => { fail("$scramjet DB open failed: " + req.error); resolve(); };
+          req.onupgradeneeded = () => {
+            warn("$scramjet DB does not exist (upgrade triggered)");
+            req.transaction.abort();
+            resolve();
+          };
+        });
+      } catch (e) {
+        fail("IDB check failed: " + e.message);
+      }
+
+      // 11. localStorage
+      info("\n=== localStorage ===");
+      info("  blossom_version: " + localStorage.getItem("blossom_version"));
+      info("  bare-mux-path: " + localStorage.getItem("bare-mux-path"));
+
+      info("\n=== Done ===");
+    }
+
+    async function testProxy() {
+      log.innerHTML = "";
+      info("=== Proxy Navigation Test ===\n");
+
+      if (!navigator.serviceWorker?.controller) {
+        fail("No SW controller — cannot intercept proxy requests");
+        info("Try: reload page first, then run this test");
+        return;
+      }
+
+      let cfg;
+      try {
+        cfg = await (await fetch("/blossom-config.json")).json();
+      } catch (e) {
+        fail("Config fetch failed: " + e.message);
+        return;
+      }
+
+      const prefix = cfg.scramjetPrefix || "/~/";
+      const testUrl = prefix + encodeURIComponent("https://example.com/");
+      info("Fetching: " + testUrl);
+
+      try {
+        const resp = await fetch(testUrl);
+        info("Status: " + resp.status);
+        info("Content-Type: " + resp.headers.get("content-type"));
+        const text = await resp.text();
+        if (text.includes("Example Domain")) {
+          ok("Proxy is WORKING — got example.com content through proxy");
+        } else if (text.includes("Blossom") || text.includes("<!DOCTYPE")) {
+          fail("Got Blossom HTML back — SW is NOT intercepting proxy requests");
+          info("First 200 chars: " + text.substring(0, 200));
+        } else if (text.includes("Connection Error")) {
+          fail("SW returned error page: " + text.substring(0, 300));
+        } else {
+          warn("Got unexpected content (first 200 chars): " + text.substring(0, 200));
+        }
+      } catch (e) {
+        fail("Proxy fetch failed: " + e.message);
+      }
+    }
+
+    // Run automatically on load
+    runAll();
+  </script>
+</body>
+</html>

@@ -84,16 +84,8 @@ async function init() {
 
   // Register SW first — scramjet needs it running
   try {
-    await registerSW(config.version);
+    await registerSW(config.version, config.proxyPrefix, config.scramjetPrefix);
     console.log("[Blossom] Service worker registered");
-    // Send config to SW immediately so it knows the randomized paths
-    if (navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({
-        type: "sw-config",
-        proxyPrefix: config.proxyPrefix,
-        scramjetPrefix: config.scramjetPrefix,
-      });
-    }
   } catch (err) {
     console.error("[Blossom] SW registration failed:", err);
   }
@@ -236,7 +228,7 @@ async function navigateTo(url) {
 
   // Ensure SW is registered and transport is ready
   try {
-    await registerSW(config.version);
+    await registerSW(config.version, config.proxyPrefix, config.scramjetPrefix);
     await ensureTransport();
   } catch (err) {
     loadingOverlay.hidden = true;

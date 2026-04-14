@@ -1,6 +1,5 @@
 // Service worker registration for Scramjet
 
-const SW_PATH = "./sw.js";
 const ALLOWED_HOSTNAMES = ["localhost", "127.0.0.1"];
 const VERSION_KEY = "blossom_version";
 
@@ -37,7 +36,7 @@ async function purgeStaleData() {
   }
 }
 
-export async function registerSW(serverVersion) {
+export async function registerSW(serverVersion, proxyPrefix, scramjetPrefix) {
   if (swReady) return true;
 
   if (!navigator.serviceWorker) {
@@ -55,10 +54,13 @@ export async function registerSW(serverVersion) {
     localStorage.setItem(VERSION_KEY, serverVersion);
   }
 
-  // updateViaCache: 'none' forces the browser to check the server for an updated SW
-  // on every navigation, bypassing HTTP cache. This ensures users get the latest SW
-  // after deployments (critical: old broken SWs would otherwise stay cached indefinitely).
-  const reg = await navigator.serviceWorker.register(SW_PATH, { updateViaCache: "none" });
+  // Pass config to SW via URL params so it can importScripts at the top level.
+  // importScripts ONLY works during initial script evaluation — NOT in fetch handlers.
+  const p = encodeURIComponent(proxyPrefix || "/assets/wasm/");
+  const s = encodeURIComponent(scramjetPrefix || "/~/");
+  const swUrl = `/sw.js?p=${p}&s=${s}`;
+
+  const reg = await navigator.serviceWorker.register(swUrl, { updateViaCache: "none" });
 
   // If there's a waiting SW, activate it immediately
   if (reg.waiting) {
