@@ -44,6 +44,10 @@ app.use(helmet({
 }));
 
 // COEP/COOP required for SharedArrayBuffer (bare-mux needs it)
+// Use "credentialless" COEP — less restrictive than "require-corp" and allows
+// cross-origin no-CORS requests (just strips credentials). This avoids blocking
+// external images/resources while still enabling SharedArrayBuffer.
+// Supported in Chrome 96+, Firefox 119+, Safari 17.2+.
 app.use((_req, res, next) => {
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
   res.setHeader("Cross-Origin-Embedder-Policy", "credentialless");

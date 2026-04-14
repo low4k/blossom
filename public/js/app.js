@@ -22,6 +22,12 @@ let proxyActive = false;
 async function init() {
   console.log("[Blossom] Initializing...");
 
+  // Check cross-origin isolation (required for SharedArrayBuffer / BareMux)
+  if (!crossOriginIsolated) {
+    console.warn("[Blossom] Page is NOT cross-origin isolated. SharedArrayBuffer unavailable.");
+    console.warn("[Blossom] This may happen on Safari or older browsers. Proxy may not work.");
+  }
+
   // Load server config
   try {
     const resp = await fetch("/blossom-config.json");
@@ -103,17 +109,15 @@ async function initScramjet() {
       console.log("[Blossom] ScramjetController initialized");
     } catch (err) {
       console.warn("[Blossom] Init failed, clearing stale IDB:", err.message);
-      const dbs = await indexedDB.databases();
-      for (const db of dbs) {
-        if (db.name && db.name.toLowerCase().includes("scramjet")) {
-          await new Promise((resolve) => {
-            const req = indexedDB.deleteDatabase(db.name);
-            req.onsuccess = resolve;
-            req.onerror = resolve; // Continue even on error
-            req.onblocked = resolve; // Continue even if blocked
-          });
-          console.log("[Blossom] Deleted stale DB:", db.name);
-        }
+      // Delete known Scramjet DB by name (indexedDB.databases() is not supported in Firefox)
+      for (const name of ["$scramjet"]) {
+        await new Promise((resolve) => {
+          const req = indexedDB.deleteDatabase(name);
+          req.onsuccess = resolve;
+          req.onerror = resolve;
+          req.onblocked = resolve;
+        });
+        console.log("[Blossom] Deleted stale DB:", name);
       }
       await scramjet.init();
       console.log("[Blossom] ScramjetController initialized (after IDB cleanup)");

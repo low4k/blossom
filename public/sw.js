@@ -20,6 +20,13 @@ let ready = false;
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
 
+// Handle skip-waiting message from registration code (for immediate activation of updates)
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "skipWaiting") {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener("fetch", (event) => {
   const url = event.request.url;
 
