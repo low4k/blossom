@@ -6,7 +6,7 @@ import { resolveInput } from "./search.js";
 import { applyCloak } from "./cloak.js";
 import { initPanic } from "./panic.js";
 import { loadGames, filterGames, getAllTags, toggleFavorite, isFavorite, recordGamePlayed } from "./games.js";
-import { getBookmarks, addBookmark, removeBookmark } from "./bookmarks.js";
+import { getBookmarks, addBookmark, removeBookmark, isBookmarked } from "./bookmarks.js";
 import { getHistory, addToHistory, clearHistory } from "./history.js";
 import { initMirrors } from "./mirrors.js";
 import { initSettings } from "./settings.js";
@@ -73,6 +73,8 @@ async function init() {
   wirePanels();
   wireGames();
   wireHistoryPanel();
+  wireProxyToolbar();
+  wireLogoClick();
 
   // Check server health for status widget
   checkHealth();
@@ -178,11 +180,22 @@ async function navigateTo(url) {
 
   console.log("[Blossom] Navigating to:", resolved);
 
+  // Show loading overlay
+  const loadingOverlay = document.getElementById("loading-overlay");
+  const proxyToolbar = document.getElementById("proxy-toolbar");
+  loadingOverlay.hidden = false;
+  proxyToolbar.hidden = false;
+
+  // Update URL bar
+  updateProxyUrlBar(resolved);
+
   // Ensure SW is registered and transport is ready
   try {
     await registerSW();
     await ensureTransport();
   } catch (err) {
+    loadingOverlay.hidden = true;
+    proxyToolbar.hidden = true;
     searchError.textContent = "Failed to initialize proxy transport: " + err.message;
     searchError.hidden = false;
     console.error("[Blossom] Transport setup failed:", err);
@@ -201,10 +214,19 @@ async function navigateTo(url) {
   // Create a new ScramjetFrame each navigation
   const frame = scramjet.createFrame();
   frame.frame.id = "proxy-frame";
-  frame.frame.className = "proxy-frame";
+  frame.frame.className = "proxy-frame with-toolbar";
   frame.addEventListener("urlchange", (e) => {
     console.log("[Blossom] URL changed:", e.url);
+    updateProxyUrlBar(e.url);
+    updateBookmarkButton(e.url);
   });
+
+  // Hide loading when frame loads
+  frame.frame.addEventListener("load", () => {
+    loadingOverlay.hidden = true;
+  }, { once: true });
+  // Fallback: hide loading after 10s
+  setTimeout(() => { loadingOverlay.hidden = true; }, 10000);
 
   // Remove old frame if any
   const oldFrame = document.getElementById("proxy-frame");
@@ -213,6 +235,9 @@ async function navigateTo(url) {
   document.getElementById("app").appendChild(frame.frame);
   scramjetFrame = frame;
   frame.go(resolved);
+
+  // Update bookmark button state
+  updateBookmarkButton(resolved);
 
   // Show CAPTCHA toast if navigating to a site that commonly triggers them
   const captchaSites = ["google.com", "youtube.com", "discord.com", "roblox.com"];
@@ -224,9 +249,13 @@ async function navigateTo(url) {
 function goHome() {
   const frame = document.getElementById("proxy-frame");
   const homeView = document.getElementById("home-view");
+  const proxyToolbar = document.getElementById("proxy-toolbar");
+  const loadingOverlay = document.getElementById("loading-overlay");
 
   if (frame) frame.remove();
   homeView.style.display = "";
+  proxyToolbar.hidden = true;
+  loadingOverlay.hidden = true;
   proxyActive = false;
   scramjetFrame = null;
 }
@@ -443,7 +472,15 @@ function renderRecentVisits() {
     let hostname = h.url;
     try { hostname = new URL(h.url).hostname; } catch {}
 
-    card.innerHTML = `<span class="quick-icon">🌐</span><span>${hostname}</span>`;
+    const icon = document.createElement("span");
+    icon.className = "quick-icon";
+    icon.textContent = "🌐";
+
+    const label = document.createElement("span");
+    label.textContent = hostname;
+
+    card.appendChild(icon);
+    card.appendChild(label);
     card.addEventListener("click", () => navigateTo(h.url));
     container.appendChild(card);
   }
@@ -500,6 +537,62 @@ function formatTime(ts) {
   if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
   return d.toLocaleDateString();
+}
+
+// --- Proxy Toolbar ---
+function wireProxyToolbar() {
+  document.getElementById("proxy-back").addEventListener("click", () => {
+    if (!scramjetFrame) return;
+    try { scramjetFrame.frame.contentWindow.history.back(); } catch {}
+  });
+  document.getElementById("proxy-forward").addEventListener("click", () => {
+    if (!scramjetFrame) return;
+    try { scramjetFrame.frame.contentWindow.history.forward(); } catch {}
+  });
+  document.getElementById("proxy-reload").addEventListener("click", () => {
+    if (!scramjetFrame) return;
+    try { scramjetFrame.frame.contentWindow.location.reload(); } catch {}
+  });
+  document.getElementById("proxy-home").addEventListener("click", goHome);
+  document.getElementById("proxy-bookmark").addEventListener("click", () => {
+    const urlText = document.getElementById("proxy-url-text").textContent;
+    if (!urlText || urlText === "Loading...") return;
+    if (isBookmarked(urlText)) {
+      removeBookmark(urlText);
+    } else {
+      addBookmark(urlText, urlText);
+    }
+    updateBookmarkButton(urlText);
+  });
+}
+
+function updateProxyUrlBar(url) {
+  const urlText = document.getElementById("proxy-url-text");
+  try {
+    const parsed = new URL(url);
+    urlText.textContent = parsed.hostname + parsed.pathname;
+  } catch {
+    urlText.textContent = url;
+  }
+}
+
+function updateBookmarkButton(url) {
+  const btn = document.getElementById("proxy-bookmark");
+  if (isBookmarked(url)) {
+    btn.classList.add("bookmarked");
+  } else {
+    btn.classList.remove("bookmarked");
+  }
+}
+
+function wireLogoClick() {
+  const logo = document.querySelector(".topbar-left .logo");
+  if (logo) {
+    logo.style.cursor = "pointer";
+    logo.addEventListener("click", () => {
+      if (proxyActive) goHome();
+    });
+  }
 }
 
 // --- Health Check ---

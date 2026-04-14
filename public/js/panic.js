@@ -19,6 +19,8 @@ export function getPanicUrl() { return panicUrl; }
 
 export function initPanic() {
   document.addEventListener("keydown", (e) => {
+    // Don't trigger while typing in inputs
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.isContentEditable) return;
     if (e.key === panicKey) {
       e.preventDefault();
       window.location.replace(panicUrl);
