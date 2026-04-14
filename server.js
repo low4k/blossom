@@ -93,6 +93,11 @@ app.use((req, res, next) => {
     return next();
   }
 
+  // Allow WebSocket upgrade path (some reverse proxies send it as regular HTTP first)
+  if (req.path === config.wispPath || req.path === config.wispPath.slice(0, -1)) {
+    return next();
+  }
+
   const token = parseCookie(req.headers.cookie, COOKIE_NAME);
   const user = validateSession(token);
   if (!user) {
@@ -179,9 +184,11 @@ app.use((err, _req, res, _next) => {
 const server = createServer(app);
 
 server.on("upgrade", (req, socket, head) => {
+  console.log(`[WS Upgrade] ${req.url}`);
   if (req.url && req.url.endsWith(config.wispPath)) {
     wisp.routeRequest(req, socket, head);
   } else {
+    console.log(`[WS Upgrade] Rejected — no match for ${config.wispPath}`);
     socket.end();
   }
 });

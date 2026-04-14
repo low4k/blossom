@@ -11,12 +11,29 @@
 // Solution: create ScramjetServiceWorker lazily on the first proxy fetch,
 // by which time the page has already set up the IDB properly.
 
-// Paths injected by the page via message (avoids hardcoding detectable paths)
-let PROXY_PREFIX = "/assets/wasm/";   // fallback
-let SCRAMJET_PREFIX = "/~/";           // fallback
+// Paths injected by the page via message OR fetched from server config
+let PROXY_PREFIX = null;
+let SCRAMJET_PREFIX = null;
 
 // Wait for config from the page before loading scramjet
 let scriptsLoaded = false;
+
+async function ensureConfig() {
+  if (PROXY_PREFIX && SCRAMJET_PREFIX) return;
+  // Try to fetch config from the server (works even if page hasn't sent config yet)
+  try {
+    const resp = await fetch("/blossom-config.json");
+    if (resp.ok) {
+      const cfg = await resp.json();
+      PROXY_PREFIX = cfg.proxyPrefix || "/assets/wasm/";
+      SCRAMJET_PREFIX = cfg.scramjetPrefix || "/~/";
+      return;
+    }
+  } catch {}
+  // Fallback defaults if fetch fails
+  if (!PROXY_PREFIX) PROXY_PREFIX = "/assets/wasm/";
+  if (!SCRAMJET_PREFIX) SCRAMJET_PREFIX = "/~/";
+}
 
 function ensureScripts() {
   if (scriptsLoaded) return;
@@ -45,11 +62,12 @@ self.addEventListener("message", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = event.request.url;
 
-  // Intercept proxy-prefixed requests AND the WASM file.
-  // Scramjet's route() intercepts the WASM file to wrap it as JS (base64-encoded)
-  // so proxied pages can load it via importScripts(). Without this, the raw .wasm
-  // file is served with application/wasm MIME type which browsers refuse to execute.
-  const isProxy = url.startsWith(location.origin + SCRAMJET_PREFIX);
+  // If we don't have config yet, we can't determine if this is a proxy request.
+  // For the scramjet prefix check, use a broad match: if the URL contains /~/ (or whatever
+  // the configured prefix is), intercept it. The WASM check requires scramjet config from IDB.
+  // We also need to intercept if the prefix hasn't been set yet but might match.
+  const knownPrefix = SCRAMJET_PREFIX || "/~/";
+  const isProxy = url.startsWith(location.origin + knownPrefix);
   const isWasm = scramjet && scramjet.config && url.startsWith(location.origin + scramjet.config.files.wasm);
 
   if (!isProxy && !isWasm) {
@@ -61,6 +79,9 @@ self.addEventListener("fetch", (event) => {
 
 async function handleProxy(event) {
   try {
+    // Ensure we have the correct paths from server config
+    await ensureConfig();
+
     // Ensure scramjet scripts are loaded
     ensureScripts();
 
