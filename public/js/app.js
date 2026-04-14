@@ -84,7 +84,7 @@ async function init() {
 
   // Register SW first — scramjet needs it running
   try {
-    await registerSW();
+    await registerSW(config.version);
     console.log("[Blossom] Service worker registered");
     // Send config to SW immediately so it knows the randomized paths
     if (navigator.serviceWorker.controller) {
@@ -236,7 +236,7 @@ async function navigateTo(url) {
 
   // Ensure SW is registered and transport is ready
   try {
-    await registerSW();
+    await registerSW(config.version);
     await ensureTransport();
   } catch (err) {
     loadingOverlay.hidden = true;
