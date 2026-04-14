@@ -23,6 +23,18 @@ Object.assign(wisp.options, config.wisp);
 // --- Express app ---
 const app = express();
 
+// Request logging middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+    const status = res.statusCode;
+    const color = status >= 500 ? "\x1b[31m" : status >= 400 ? "\x1b[33m" : "\x1b[32m";
+    console.log(`${color}${status}\x1b[0m ${req.method} ${req.url} ${duration}ms`);
+  });
+  next();
+});
+
 // Security headers via helmet (disabling some that conflict with proxy operation)
 app.use(helmet({
   contentSecurityPolicy: false,     // CSP breaks proxied content
@@ -34,7 +46,7 @@ app.use(helmet({
 // COEP/COOP required for SharedArrayBuffer (bare-mux needs it)
 app.use((_req, res, next) => {
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
-  res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+  res.setHeader("Cross-Origin-Embedder-Policy", "credentialless");
   next();
 });
 
@@ -60,12 +72,24 @@ app.get("/blossom-config.json", (_req, res) => {
 });
 
 // --- Static file serving ---
-// Scramjet engine files (obfuscated prefix)
-app.use(config.proxyPrefix, express.static(scramjetPath));
+// Scramjet engine files
+app.use(config.proxyPrefix, express.static(scramjetPath, {
+  setHeaders: (res) => {
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  }
+}));
 
 // Transport files
-app.use("/epoxy/", express.static(epoxyPath));
-app.use("/baremux/", express.static(baremuxPath));
+app.use("/epoxy/", express.static(epoxyPath, {
+  setHeaders: (res) => {
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  }
+}));
+app.use("/baremux/", express.static(baremuxPath, {
+  setHeaders: (res) => {
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  }
+}));
 
 // Frontend
 app.use(express.static(publicPath));
@@ -73,6 +97,12 @@ app.use(express.static(publicPath));
 // SPA fallback — serve index.html for unmatched routes
 app.get("*", (_req, res) => {
   res.sendFile(path.join(publicPath, "index.html"));
+});
+
+// Error handling middleware
+app.use((err, _req, res, _next) => {
+  console.error("\x1b[31m[Error]\x1b[0m", err.stack || err.message || err);
+  res.status(500).json({ error: "Internal server error" });
 });
 
 // --- HTTP server with Wisp upgrade ---
@@ -91,7 +121,14 @@ server.listen(port, "0.0.0.0", () => {
   console.log(`\n  🌸 Blossom is running`);
   console.log(`     http://localhost:${port}`);
   console.log(`     Wisp endpoint: ${config.wispPath}`);
-  console.log(`     Proxy prefix:  ${config.proxyPrefix}\n`);
+  console.log(`     Proxy prefix:  ${config.proxyPrefix}`);
+  console.log(`     Scramjet path: ${scramjetPath}`);
+  console.log(`     Epoxy path:    ${epoxyPath}`);
+  console.log(`     BareMux path:  ${baremuxPath}\n`);
+});
+
+server.on("error", (err) => {
+  console.error("\x1b[31m[Server Error]\x1b[0m", err);
 });
 
 process.on("SIGINT", shutdown);

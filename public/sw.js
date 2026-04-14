@@ -1,20 +1,21 @@
-// Blossom service worker
-// This is the stock SW that Scramjet will intercept through
-// Includes version checking for update management
+// Blossom service worker — routes proxy requests through Scramjet
 
-const VERSION = "1.0.0";
+importScripts("/scram/scramjet.all.js");
 
-self.addEventListener("install", () => {
-  self.skipWaiting();
-});
+const { ScramjetServiceWorker } = $scramjetLoadWorker();
+const scramjet = new ScramjetServiceWorker();
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
-});
+self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
 
-// Handle version check messages from the main thread
-self.addEventListener("message", (event) => {
-  if (event.data?.type === "VERSION_CHECK") {
-    event.ports[0]?.postMessage({ version: VERSION });
+async function handleRequest(event) {
+  await scramjet.loadConfig();
+  if (scramjet.route(event)) {
+    return scramjet.fetch(event);
   }
+  return fetch(event.request);
+}
+
+self.addEventListener("fetch", (event) => {
+  event.respondWith(handleRequest(event));
 });

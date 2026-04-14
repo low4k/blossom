@@ -1,8 +1,7 @@
 // Blossom — main app controller
 // Wires all modules together and handles UI interactions
 
-import { registerSW, checkSWVersion } from "./register-sw.js";
-import { markTransportReady } from "./transport.js";
+import { registerSW } from "./register-sw.js";
 import { resolveInput } from "./search.js";
 import { applyCloak } from "./cloak.js";
 import { initPanic } from "./panic.js";
@@ -15,10 +14,14 @@ import { initSettings } from "./settings.js";
 // --- State ---
 let config = {};
 let scramjet = null;
+let scramjetFrame = null;
+let connection = null;
 let proxyActive = false;
 
 // --- Boot ---
 async function init() {
+  console.log("[Blossom] Initializing...");
+
   // Load server config
   try {
     const resp = await fetch("/blossom-config.json");
@@ -43,8 +46,16 @@ async function init() {
   const versionEl = document.getElementById("blossom-version");
   if (versionEl) versionEl.textContent = `v${config.version}`;
 
+  // Register SW first — scramjet needs it running
+  try {
+    await registerSW();
+    console.log("[Blossom] Service worker registered");
+  } catch (err) {
+    console.error("[Blossom] SW registration failed:", err);
+  }
+
   // Init Scramjet
-  initScramjet();
+  await initScramjet();
 
   // Load games
   await loadGames();
@@ -61,43 +72,48 @@ async function init() {
   // Check server health for status widget
   checkHealth();
 
-  // Check SW version
-  const upToDate = await checkSWVersion(config.version);
-  if (upToDate === false) {
-    showToast("Blossom has been updated. Please refresh for the latest version.");
-  }
-
   // Render recent visits on home
   renderRecentVisits();
+
+  console.log("[Blossom] Ready");
 }
 
 // --- Scramjet Setup ---
-function initScramjet() {
+async function initScramjet() {
   if (typeof $scramjetLoadController !== "function") {
-    console.error("Scramjet failed to load. Check that scramjet.all.js is accessible.");
+    console.error("[Blossom] $scramjetLoadController not found. Check that /scram/scramjet.all.js is loaded.");
     return;
   }
-
-  const wispUrl =
-    (location.protocol === "https:" ? "wss" : "ws") +
-    "://" + location.host + config.wispPath;
 
   try {
     const { ScramjetController } = $scramjetLoadController();
 
     scramjet = new ScramjetController({
+      prefix: config.proxyPrefix || "/scram/",
       files: {
-        wasm: config.proxyPrefix + "scramjet.wasm.wasm",
-        all: config.proxyPrefix + "scramjet.all.js",
-        sync: config.proxyPrefix + "scramjet.sync.js",
+        wasm: (config.proxyPrefix || "/scram/") + "scramjet.wasm.wasm",
+        all: (config.proxyPrefix || "/scram/") + "scramjet.all.js",
+        sync: (config.proxyPrefix || "/scram/") + "scramjet.sync.js",
       },
-      wisp: wispUrl,
     });
 
-    scramjet.init();
-    markTransportReady("epoxy");
+    await scramjet.init();
+    console.log("[Blossom] ScramjetController initialized");
+
+    // Set up BareMux transport (epoxy -> wisp)
+    if (typeof BareMux !== "undefined") {
+      connection = new BareMux.BareMuxConnection("/baremux/worker.js");
+      const wispUrl =
+        (location.protocol === "https:" ? "wss" : "ws") +
+        "://" + location.host + (config.wispPath || "/wisp/");
+
+      await connection.setTransport("/epoxy/index.mjs", [{ wisp: wispUrl }]);
+      console.log("[Blossom] Transport set: epoxy -> " + wispUrl);
+    } else {
+      console.error("[Blossom] BareMux not loaded. Check that /baremux/index.js is included.");
+    }
   } catch (err) {
-    console.error("Scramjet initialization failed:", err);
+    console.error("[Blossom] Scramjet initialization failed:", err);
   }
 }
 
@@ -106,46 +122,45 @@ async function navigateTo(url) {
   const searchError = document.getElementById("search-error");
   searchError.hidden = true;
 
-  try {
-    await registerSW();
-  } catch (err) {
-    searchError.textContent = err.message;
-    searchError.hidden = false;
-    return;
-  }
-
   if (!scramjet) {
     searchError.textContent = "Proxy engine failed to load. Try refreshing the page.";
     searchError.hidden = false;
+    console.error("[Blossom] navigateTo called but scramjet is null");
     return;
   }
 
   const resolved = resolveInput(url);
   if (!resolved) return;
 
+  console.log("[Blossom] Navigating to:", resolved);
+
   // Record in history
   addToHistory(resolved, resolved);
   renderRecentVisits();
 
   // Show proxy frame
-  const frame = document.getElementById("proxy-frame");
+  const frameEl = document.getElementById("proxy-frame");
   const homeView = document.getElementById("home-view");
 
-  frame.hidden = false;
   homeView.style.display = "none";
   proxyActive = true;
 
-  // Encode URL through Scramjet
-  const encodedUrl = scramjet.encodeUrl(resolved);
+  // Use ScramjetFrame for proper proxy navigation
+  if (!scramjetFrame) {
+    scramjetFrame = scramjet.createFrame(frameEl);
+    scramjetFrame.addEventListener("urlchange", (e) => {
+      console.log("[Blossom] URL changed:", e.url);
+    });
+  }
+
+  frameEl.hidden = false;
+  scramjetFrame.go(resolved);
 
   // Show CAPTCHA toast if navigating to a site that commonly triggers them
   const captchaSites = ["google.com", "youtube.com", "discord.com", "roblox.com"];
   if (captchaSites.some((s) => resolved.includes(s))) {
-    // Delay toast so it appears after the frame starts loading, not before
     setTimeout(() => showCaptchaToast(), 1500);
   }
-
-  frame.src = encodedUrl;
 }
 
 function goHome() {
@@ -153,9 +168,9 @@ function goHome() {
   const homeView = document.getElementById("home-view");
 
   frame.hidden = true;
-  frame.src = "";
   homeView.style.display = "";
   proxyActive = false;
+  scramjetFrame = null;
 }
 
 // --- UI Wiring ---
