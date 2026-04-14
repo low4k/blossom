@@ -54,8 +54,8 @@ async function init() {
     console.error("[Blossom] SW registration failed:", err);
   }
 
-  // Init Scramjet
-  await initScramjet();
+  // Init Scramjet (synchronous setup, init() is fire-and-forget)
+  initScramjet();
 
   // Load games
   await loadGames();
@@ -79,7 +79,7 @@ async function init() {
 }
 
 // --- Scramjet Setup ---
-async function initScramjet() {
+function initScramjet() {
   if (typeof $scramjetLoadController !== "function") {
     console.error("[Blossom] $scramjetLoadController not found. Check that /scram/scramjet.all.js is loaded.");
     return;
@@ -88,32 +88,44 @@ async function initScramjet() {
   try {
     const { ScramjetController } = $scramjetLoadController();
 
+    // Don't set prefix — let it default to /scramjet/
+    // The /scram/ path is only for serving static engine files
     scramjet = new ScramjetController({
-      prefix: config.proxyPrefix || "/scram/",
       files: {
-        wasm: (config.proxyPrefix || "/scram/") + "scramjet.wasm.wasm",
-        all: (config.proxyPrefix || "/scram/") + "scramjet.all.js",
-        sync: (config.proxyPrefix || "/scram/") + "scramjet.sync.js",
+        wasm: "/scram/scramjet.wasm.wasm",
+        all: "/scram/scramjet.all.js",
+        sync: "/scram/scramjet.sync.js",
       },
     });
 
-    await scramjet.init();
-    console.log("[Blossom] ScramjetController initialized");
+    // Fire-and-forget — config will be in IDB by the time user clicks
+    scramjet.init().then(() => {
+      console.log("[Blossom] ScramjetController initialized");
+    }).catch((err) => {
+      console.error("[Blossom] ScramjetController init error:", err);
+    });
 
-    // Set up BareMux transport (epoxy -> wisp)
+    // Set up BareMux connection (transport set on-demand in navigateTo)
     if (typeof BareMux !== "undefined") {
       connection = new BareMux.BareMuxConnection("/baremux/worker.js");
-      const wispUrl =
-        (location.protocol === "https:" ? "wss" : "ws") +
-        "://" + location.host + (config.wispPath || "/wisp/");
-
-      await connection.setTransport("/epoxy/index.mjs", [{ wisp: wispUrl }]);
-      console.log("[Blossom] Transport set: epoxy -> " + wispUrl);
+      console.log("[Blossom] BareMux connection created");
     } else {
       console.error("[Blossom] BareMux not loaded. Check that /baremux/index.js is included.");
     }
   } catch (err) {
     console.error("[Blossom] Scramjet initialization failed:", err);
+  }
+}
+
+// --- Ensure transport is ready ---
+async function ensureTransport() {
+  if (!connection) return;
+  const wispUrl =
+    (location.protocol === "https:" ? "wss" : "ws") +
+    "://" + location.host + (config.wispPath || "/wisp/");
+  if ((await connection.getTransport()) !== "/epoxy/index.mjs") {
+    await connection.setTransport("/epoxy/index.mjs", [{ wisp: wispUrl }]);
+    console.log("[Blossom] Transport set: epoxy -> " + wispUrl);
   }
 }
 
@@ -134,27 +146,41 @@ async function navigateTo(url) {
 
   console.log("[Blossom] Navigating to:", resolved);
 
+  // Ensure SW is registered and transport is ready
+  try {
+    await registerSW();
+    await ensureTransport();
+  } catch (err) {
+    searchError.textContent = "Failed to initialize proxy transport: " + err.message;
+    searchError.hidden = false;
+    console.error("[Blossom] Transport setup failed:", err);
+    return;
+  }
+
   // Record in history
   addToHistory(resolved, resolved);
   renderRecentVisits();
 
   // Show proxy frame
-  const frameEl = document.getElementById("proxy-frame");
   const homeView = document.getElementById("home-view");
-
   homeView.style.display = "none";
   proxyActive = true;
 
-  // Use ScramjetFrame for proper proxy navigation
-  if (!scramjetFrame) {
-    scramjetFrame = scramjet.createFrame(frameEl);
-    scramjetFrame.addEventListener("urlchange", (e) => {
-      console.log("[Blossom] URL changed:", e.url);
-    });
-  }
+  // Create a new ScramjetFrame each navigation
+  const frame = scramjet.createFrame();
+  frame.frame.id = "proxy-frame";
+  frame.frame.className = "proxy-frame";
+  frame.addEventListener("urlchange", (e) => {
+    console.log("[Blossom] URL changed:", e.url);
+  });
 
-  frameEl.hidden = false;
-  scramjetFrame.go(resolved);
+  // Remove old frame if any
+  const oldFrame = document.getElementById("proxy-frame");
+  if (oldFrame) oldFrame.remove();
+
+  document.getElementById("app").appendChild(frame.frame);
+  scramjetFrame = frame;
+  frame.go(resolved);
 
   // Show CAPTCHA toast if navigating to a site that commonly triggers them
   const captchaSites = ["google.com", "youtube.com", "discord.com", "roblox.com"];
@@ -167,7 +193,7 @@ function goHome() {
   const frame = document.getElementById("proxy-frame");
   const homeView = document.getElementById("home-view");
 
-  frame.hidden = true;
+  if (frame) frame.remove();
   homeView.style.display = "";
   proxyActive = false;
   scramjetFrame = null;
@@ -511,8 +537,7 @@ window.showProxyError = function (detail) {
 
   document.getElementById("error-retry").onclick = () => {
     overlay.hidden = true;
-    const frame = document.getElementById("proxy-frame");
-    if (frame.src) frame.src = frame.src; // reload
+    if (scramjetFrame) scramjetFrame.reload();
   };
 
   document.getElementById("error-home").onclick = () => {
