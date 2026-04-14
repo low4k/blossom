@@ -106,7 +106,12 @@ async function initScramjet() {
       const dbs = await indexedDB.databases();
       for (const db of dbs) {
         if (db.name && db.name.toLowerCase().includes("scramjet")) {
-          indexedDB.deleteDatabase(db.name);
+          await new Promise((resolve) => {
+            const req = indexedDB.deleteDatabase(db.name);
+            req.onsuccess = resolve;
+            req.onerror = resolve; // Continue even on error
+            req.onblocked = resolve; // Continue even if blocked
+          });
           console.log("[Blossom] Deleted stale DB:", db.name);
         }
       }

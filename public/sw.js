@@ -1,30 +1,36 @@
 // Blossom service worker — routes proxy requests through Scramjet
+//
+// CRITICAL: ScramjetServiceWorker must NOT be created at the top level.
+// Its constructor opens IDB "$scramjet" v1 without the upgrade callback,
+// which creates the DB with no object stores. This races against the page's
+// ScramjetController.init() which opens the same DB WITH the upgrade callback
+// that creates the required stores. If the SW wins the race (it always does
+// because it installs first), the page's upgrade never fires, init() hangs
+// forever, and the proxy never works.
+//
+// Solution: create ScramjetServiceWorker lazily on the first proxy fetch,
+// by which time the page has already set up the IDB properly.
 
 importScripts("/scram/scramjet.all.js");
 
 const { ScramjetServiceWorker } = $scramjetLoadWorker();
-const scramjet = new ScramjetServiceWorker();
+let scramjet = null;
 let ready = false;
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
 
-// When the controller sends config via postMessage, the built-in handler
-// sets scramjet.config but does NOT initialize $W or load WASM.
-// Force a full re-init from IDB on the next proxy request.
-self.addEventListener("message", (event) => {
-  if (event.data && event.data.scramjet$type === "loadConfig") {
-    scramjet.config = null;
-    ready = false;
-  }
-});
-
 self.addEventListener("fetch", (event) => {
   const url = event.request.url;
 
-  // Only intercept proxy-prefixed requests (default: /scramjet/)
-  // Let all other requests (CSS, JS, images, page itself) pass through untouched
-  if (!url.startsWith(location.origin + "/scramjet/")) {
+  // Intercept proxy-prefixed requests (default: /scramjet/) AND the WASM file.
+  // Scramjet's route() intercepts the WASM file to wrap it as JS (base64-encoded)
+  // so proxied pages can load it via importScripts(). Without this, the raw .wasm
+  // file is served with application/wasm MIME type which browsers refuse to execute.
+  const isProxy = url.startsWith(location.origin + "/scramjet/");
+  const isWasm = scramjet && scramjet.config && url.startsWith(location.origin + scramjet.config.files.wasm);
+
+  if (!isProxy && !isWasm) {
     return;
   }
 
@@ -33,8 +39,14 @@ self.addEventListener("fetch", (event) => {
 
 async function handleProxy(event) {
   try {
+    // Lazy-init: create ScramjetServiceWorker on first proxy request.
+    // By now the page's init() has created the IDB with all required stores.
+    if (!scramjet) {
+      scramjet = new ScramjetServiceWorker();
+    }
+
     if (!ready) {
-      // Force IDB-based loadConfig which properly calls Nk() and loads WASM
+      // loadConfig reads config from IDB, calls Nk() (sets global $W), loads WASM
       scramjet.config = null;
       await scramjet.loadConfig();
       if (!scramjet.config) {
