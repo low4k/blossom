@@ -1,3 +1,7 @@
 node_modules/
 .env
+.env.local
 data/
+blossom.db
+blossom.db-wal
+blossom.db-shm

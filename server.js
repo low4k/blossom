@@ -26,6 +26,9 @@ Object.assign(wisp.options, config.wisp);
 // --- Express app ---
 const app = express();
 
+// Trust Cloudflare / Railway proxy for correct client IP in rate limiter & logs
+app.set("trust proxy", 1);
+
 // Request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
