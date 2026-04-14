@@ -3,8 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Student learning portal — access educational resources, research tools, and study materials." />
+  <meta name="keywords" content="education, learning, student portal, research, study tools, classroom" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta property="og:title" content="Student Learning Portal" />
+  <meta property="og:description" content="Access educational resources and study tools for students." />
+  <meta property="og:type" content="website" />
   <title>Google</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🌸</text></svg>" />
+  <link rel="icon" href="https://www.google.com/favicon.ico" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
@@ -30,13 +36,13 @@
     <main id="home-view">
       <div class="hero">
         <h1 class="hero-title">Blossom</h1>
-        <p class="hero-sub">Browse freely.</p>
+        <p class="hero-sub">Your learning starts here.</p>
         <form id="search-form" autocomplete="off">
           <div class="search-wrap">
             <input
               id="search-input"
               type="text"
-              placeholder="Search or enter URL"
+              placeholder="Search for resources..."
               spellcheck="false"
               autofocus
             />
@@ -207,14 +213,14 @@
           </div>
         </div>
         <div class="setting-group">
-          <p class="version-text">Blossom <span id="blossom-version">v1.0.0</span></p>
+          <p class="version-text">v<span id="blossom-version">1.0.0</span></p>
         </div>
       </div>
     </div>
 
     <!-- CAPTCHA toast -->
     <div id="captcha-toast" class="toast" hidden>
-      Solving a CAPTCHA? Complete it slowly — the proxy can sometimes loop if you go too fast.
+      Solving a CAPTCHA? Complete it slowly — the page can sometimes loop if you go too fast.
       <button class="toast-close" data-dismiss="captcha-toast">✕</button>
     </div>
 
@@ -231,18 +237,37 @@
     </div>
   </div>
 
-  <!-- Scripts: order matters -->
-  <script src="/scram/scramjet.all.js"></script>
-  <script src="/baremux/index.js"></script>
-  <script src="/js/register-sw.js" type="module"></script>
-  <script src="/js/search.js" type="module"></script>
-  <script src="/js/cloak.js" type="module"></script>
-  <script src="/js/panic.js" type="module"></script>
-  <script src="/js/games.js" type="module"></script>
-  <script src="/js/bookmarks.js" type="module"></script>
-  <script src="/js/history.js" type="module"></script>
-  <script src="/js/mirrors.js" type="module"></script>
-  <script src="/js/settings.js" type="module"></script>
-  <script src="/js/app.js" type="module"></script>
+  <!-- Scripts: paths fetched from server config to avoid hardcoded detectable paths -->
+  <script>
+    (async () => {
+      let cfg;
+      try {
+        const r = await fetch("/blossom-config.json");
+        cfg = await r.json();
+      } catch {
+        cfg = { proxyPrefix: "/assets/wasm/", baremuxPrefix: "/assets/worker/" };
+      }
+
+      function loadScript(src) {
+        return new Promise((resolve, reject) => {
+          const s = document.createElement("script");
+          s.src = src;
+          s.onload = resolve;
+          s.onerror = reject;
+          document.body.appendChild(s);
+        });
+      }
+
+      // Load scramjet engine + baremux (global scripts, must load before modules)
+      await loadScript(cfg.proxyPrefix + "scramjet.all.js");
+      await loadScript(cfg.baremuxPrefix + "index.js");
+
+      // Load app entry point as module (pulls in all other modules via imports)
+      const m = document.createElement("script");
+      m.type = "module";
+      m.src = "/js/app.js";
+      document.body.appendChild(m);
+    })();
+  </script>
 </body>
 </html>

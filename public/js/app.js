@@ -26,7 +26,13 @@ async function init() {
   // Check cross-origin isolation (required for SharedArrayBuffer / BareMux)
   if (!crossOriginIsolated) {
     console.warn("[Blossom] Page is NOT cross-origin isolated. SharedArrayBuffer unavailable.");
-    console.warn("[Blossom] This may happen on Safari or older browsers. Proxy may not work.");
+    console.warn("[Blossom] This may happen on Safari, Firefox forks, or older browsers.");
+    // Show a visible warning so users know why things break
+    const errEl = document.getElementById("search-error");
+    if (errEl) {
+      errEl.textContent = "Your browser doesn't support required features. Try Chrome/Edge, or check browser settings.";
+      errEl.hidden = false;
+    }
   }
 
   // Load server config
@@ -34,7 +40,15 @@ async function init() {
     const resp = await fetch("/blossom-config.json");
     config = await resp.json();
   } catch {
-    config = { proxyPrefix: "/scram/", wispPath: "/wisp/", mirrors: [], version: "1.0.0" };
+    config = {
+      proxyPrefix: "/assets/wasm/",
+      epoxyPrefix: "/assets/net/",
+      baremuxPrefix: "/assets/worker/",
+      wispPath: "/ws/",
+      scramjetPrefix: "/~/",
+      mirrors: [],
+      version: "1.0.0",
+    };
   }
 
   // Apply tab cloak immediately
@@ -72,6 +86,14 @@ async function init() {
   try {
     await registerSW();
     console.log("[Blossom] Service worker registered");
+    // Send config to SW immediately so it knows the randomized paths
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: "sw-config",
+        proxyPrefix: config.proxyPrefix,
+        scramjetPrefix: config.scramjetPrefix,
+      });
+    }
   } catch (err) {
     console.error("[Blossom] SW registration failed:", err);
   }
@@ -105,20 +127,22 @@ async function init() {
 // --- Scramjet Setup ---
 async function initScramjet() {
   if (typeof $scramjetLoadController !== "function") {
-    console.error("[Blossom] $scramjetLoadController not found. Check that /scram/scramjet.all.js is loaded.");
+    console.error("[Blossom] $scramjetLoadController not found. Check that scramjet.all.js is loaded.");
     return;
   }
 
   try {
     const { ScramjetController } = $scramjetLoadController();
 
-    // Don't set prefix — let it default to /scramjet/
-    // The /scram/ path is only for serving static engine files
+    const prefix = config.proxyPrefix || "/assets/wasm/";
+    const scramjetPrefix = config.scramjetPrefix || "/~/";
+
     scramjet = new ScramjetController({
+      prefix: scramjetPrefix,
       files: {
-        wasm: "/scram/scramjet.wasm.wasm",
-        all: "/scram/scramjet.all.js",
-        sync: "/scram/scramjet.sync.js",
+        wasm: prefix + "scramjet.wasm.wasm",
+        all: prefix + "scramjet.all.js",
+        sync: prefix + "scramjet.sync.js",
       },
     });
 
@@ -145,14 +169,16 @@ async function initScramjet() {
     // Set up BareMux connection and transport IMMEDIATELY
     // Transport must be configured before any proxy request is made
     if (typeof BareMux !== "undefined") {
-      connection = new BareMux.BareMuxConnection("/baremux/worker.js");
+      const bmPrefix = config.baremuxPrefix || "/assets/worker/";
+      const epPrefix = config.epoxyPrefix || "/assets/net/";
+      connection = new BareMux.BareMuxConnection(bmPrefix + "worker.js");
       const wispUrl =
         (location.protocol === "https:" ? "wss" : "ws") +
-        "://" + location.host + (config.wispPath || "/wisp/");
-      await connection.setTransport("/epoxy/index.mjs", [{ wisp: wispUrl }]);
+        "://" + location.host + (config.wispPath || "/ws/");
+      await connection.setTransport(epPrefix + "index.mjs", [{ wisp: wispUrl }]);
       console.log("[Blossom] BareMux transport set: epoxy -> " + wispUrl);
     } else {
-      console.error("[Blossom] BareMux not loaded. Check that /baremux/index.js is included.");
+      console.error("[Blossom] BareMux not loaded. Check that baremux/index.js is included.");
     }
   } catch (err) {
     console.error("[Blossom] Scramjet initialization failed:", err);
@@ -163,19 +189,21 @@ async function initScramjet() {
 async function ensureTransport() {
   if (!connection) {
     if (typeof BareMux !== "undefined") {
-      connection = new BareMux.BareMuxConnection("/baremux/worker.js");
+      const bmPrefix = config.baremuxPrefix || "/assets/worker/";
+      connection = new BareMux.BareMuxConnection(bmPrefix + "worker.js");
     } else {
       throw new Error("BareMux not available");
     }
   }
   const wispUrl =
     (location.protocol === "https:" ? "wss" : "ws") +
-    "://" + location.host + (config.wispPath || "/wisp/");
+    "://" + location.host + (config.wispPath || "/ws/");
   try {
     const t = await connection.getTransport();
     if (!t) throw new Error("no transport");
   } catch {
-    await connection.setTransport("/epoxy/index.mjs", [{ wisp: wispUrl }]);
+    const epPrefix = config.epoxyPrefix || "/assets/net/";
+    await connection.setTransport(epPrefix + "index.mjs", [{ wisp: wispUrl }]);
     console.log("[Blossom] Transport re-set: epoxy -> " + wispUrl);
   }
 }
@@ -186,7 +214,7 @@ async function navigateTo(url) {
   searchError.hidden = true;
 
   if (!scramjet) {
-    searchError.textContent = "Proxy engine failed to load. Try refreshing the page.";
+    searchError.textContent = "Engine failed to load. Try refreshing the page.";
     searchError.hidden = false;
     console.error("[Blossom] navigateTo called but scramjet is null");
     return;
@@ -213,7 +241,7 @@ async function navigateTo(url) {
   } catch (err) {
     loadingOverlay.hidden = true;
     proxyToolbar.hidden = true;
-    searchError.textContent = "Failed to initialize proxy transport: " + err.message;
+    searchError.textContent = "Failed to initialize connection: " + err.message;
     searchError.hidden = false;
     console.error("[Blossom] Transport setup failed:", err);
     return;

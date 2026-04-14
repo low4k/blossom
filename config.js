@@ -5,13 +5,19 @@ const config = {
   // Port to listen on (overridden by PORT env var)
   port: parseInt(process.env.PORT || "8080", 10),
 
-  // Randomized proxy prefix — change this per deployment
-  // School filters detect /scramjet/, /uv/, /bare/ etc.
-  // Use something random like /xq7r4m/ so they can't pattern-match
-  proxyPrefix: process.env.PROXY_PREFIX || "/scram/",
+  // --- Path randomization ---
+  // These paths serve Scramjet engine files, transport libs, and WebSocket.
+  // School filters detect /scramjet/, /epoxy/, /baremux/, /wisp/ etc.
+  // Use innocent-looking paths that blend with normal web app assets.
+  // Override via env vars per deployment for maximum uniqueness.
+  proxyPrefix: process.env.PROXY_PREFIX || "/assets/wasm/",
+  epoxyPrefix: process.env.EPOXY_PREFIX || "/assets/net/",
+  baremuxPrefix: process.env.BAREMUX_PREFIX || "/assets/worker/",
+  wispPath: process.env.WISP_PATH || "/ws/",
 
-  // Wisp endpoint path
-  wispPath: process.env.WISP_PATH || "/wisp/",
+  // Scramjet's internal rewrite prefix (what proxied URLs start with)
+  // Default /scramjet/ is a dead giveaway. Use something innocuous.
+  scramjetPrefix: process.env.SCRAMJET_PREFIX || "/~/",
 
   // Mirror domains for domain survival system
   // Frontend pings these and auto-redirects if current domain dies

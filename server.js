@@ -81,12 +81,12 @@ app.use((req, res, next) => {
   if (publicPaths.some((p) => req.path === p)) return next();
 
   // Allow scramjet/epoxy/baremux static assets (needed by SW after auth)
-  if (req.path.startsWith(config.proxyPrefix) || req.path.startsWith("/epoxy/") || req.path.startsWith("/baremux/")) {
+  if (req.path.startsWith(config.proxyPrefix) || req.path.startsWith(config.epoxyPrefix) || req.path.startsWith(config.baremuxPrefix)) {
     return next();
   }
 
-  // Allow service worker and its scope
-  if (req.path === "/sw.js" || req.path.startsWith("/scramjet/")) {
+  // Allow service worker and its scope (scramjetPrefix is the rewrite prefix for proxied URLs)
+  if (req.path === "/sw.js" || req.path.startsWith(config.scramjetPrefix)) {
     return next();
   }
 
@@ -116,7 +116,10 @@ app.get("/admin", (req, res) => {
 app.get("/blossom-config.json", (req, res) => {
   res.json({
     proxyPrefix: config.proxyPrefix,
+    epoxyPrefix: config.epoxyPrefix,
+    baremuxPrefix: config.baremuxPrefix,
     wispPath: config.wispPath,
+    scramjetPrefix: config.scramjetPrefix,
     mirrors: config.mirrors,
     version: config.version,
     defaultCloak: config.defaultCloak,
@@ -139,12 +142,12 @@ app.use(config.proxyPrefix, express.static(scramjetPath, {
 }));
 
 // Transport files
-app.use("/epoxy/", express.static(epoxyPath, {
+app.use(config.epoxyPrefix, express.static(epoxyPath, {
   setHeaders: (res) => {
     res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
   }
 }));
-app.use("/baremux/", express.static(baremuxPath, {
+app.use(config.baremuxPrefix, express.static(baremuxPath, {
   setHeaders: (res) => {
     res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
   }
@@ -184,11 +187,11 @@ const port = config.port;
 server.listen(port, "0.0.0.0", () => {
   console.log(`\n  🌸 Blossom is running`);
   console.log(`     http://localhost:${port}`);
-  console.log(`     Wisp endpoint: ${config.wispPath}`);
-  console.log(`     Proxy prefix:  ${config.proxyPrefix}`);
-  console.log(`     Scramjet path: ${scramjetPath}`);
-  console.log(`     Epoxy path:    ${epoxyPath}`);
-  console.log(`     BareMux path:  ${baremuxPath}\n`);
+  console.log(`     Wisp endpoint:    ${config.wispPath}`);
+  console.log(`     Proxy prefix:     ${config.proxyPrefix}`);
+  console.log(`     Epoxy prefix:     ${config.epoxyPrefix}`);
+  console.log(`     BareMux prefix:   ${config.baremuxPrefix}`);
+  console.log(`     Scramjet prefix:  ${config.scramjetPrefix}\n`);
 });
 
 server.on("error", (err) => {

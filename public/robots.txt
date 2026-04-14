@@ -1,0 +1,5 @@
+# Educational platform — respectful crawling only
+User-agent: *
+Disallow: /admin
+Disallow: /auth
+Allow: /
