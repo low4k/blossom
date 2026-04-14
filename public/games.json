@@ -1,0 +1,177 @@
+[
+  {
+    "id": "slope",
+    "name": "Slope",
+    "url": "https://slope-game.github.io/",
+    "thumb": "https://slope-game.github.io/img/slope.png",
+    "tags": ["action", "3d", "popular"]
+  },
+  {
+    "id": "1v1lol",
+    "name": "1v1.LOL",
+    "url": "https://1v1.lol",
+    "thumb": "",
+    "tags": ["shooter", "multiplayer", "popular"]
+  },
+  {
+    "id": "retro-bowl",
+    "name": "Retro Bowl",
+    "url": "https://retro-bowl-game.github.io/",
+    "thumb": "",
+    "tags": ["sports", "popular"]
+  },
+  {
+    "id": "subway-surfers",
+    "name": "Subway Surfers",
+    "url": "https://subwaysurfers.game/",
+    "thumb": "",
+    "tags": ["action", "runner", "popular"]
+  },
+  {
+    "id": "2048",
+    "name": "2048",
+    "url": "https://play2048.co/",
+    "thumb": "",
+    "tags": ["puzzle", "classic"]
+  },
+  {
+    "id": "cookie-clicker",
+    "name": "Cookie Clicker",
+    "url": "https://orteil.dashnet.org/cookieclicker/",
+    "thumb": "",
+    "tags": ["idle", "clicker", "classic"]
+  },
+  {
+    "id": "tetris",
+    "name": "Tetris",
+    "url": "https://tetris.com/play-tetris",
+    "thumb": "",
+    "tags": ["puzzle", "classic"]
+  },
+  {
+    "id": "among-us",
+    "name": "Among Us Online",
+    "url": "https://among-us-online.net/",
+    "thumb": "",
+    "tags": ["multiplayer", "social"]
+  },
+  {
+    "id": "agar-io",
+    "name": "Agar.io",
+    "url": "https://agar.io",
+    "thumb": "",
+    "tags": ["io", "multiplayer"]
+  },
+  {
+    "id": "slither-io",
+    "name": "Slither.io",
+    "url": "https://slither.io",
+    "thumb": "",
+    "tags": ["io", "multiplayer"]
+  },
+  {
+    "id": "run-3",
+    "name": "Run 3",
+    "url": "https://run3.io/",
+    "thumb": "",
+    "tags": ["action", "runner", "classic"]
+  },
+  {
+    "id": "fnf",
+    "name": "Friday Night Funkin'",
+    "url": "https://fridaynightfunkin.net/play/",
+    "thumb": "",
+    "tags": ["rhythm", "music", "popular"]
+  },
+  {
+    "id": "paper-io",
+    "name": "Paper.io 2",
+    "url": "https://paper-io.com/",
+    "thumb": "",
+    "tags": ["io", "multiplayer"]
+  },
+  {
+    "id": "minecraft-classic",
+    "name": "Minecraft Classic",
+    "url": "https://classic.minecraft.net/",
+    "thumb": "",
+    "tags": ["sandbox", "classic", "popular"]
+  },
+  {
+    "id": "drift-hunters",
+    "name": "Drift Hunters",
+    "url": "https://drift-hunters.github.io/",
+    "thumb": "",
+    "tags": ["racing", "3d"]
+  },
+  {
+    "id": "smash-karts",
+    "name": "Smash Karts",
+    "url": "https://smashkarts.io/",
+    "thumb": "",
+    "tags": ["racing", "multiplayer"]
+  },
+  {
+    "id": "chrome-dino",
+    "name": "Chrome Dino",
+    "url": "https://chromedino.com/",
+    "thumb": "",
+    "tags": ["action", "runner", "classic"]
+  },
+  {
+    "id": "crossy-road",
+    "name": "Crossy Road",
+    "url": "https://crossyroad.com/",
+    "thumb": "",
+    "tags": ["action", "casual"]
+  },
+  {
+    "id": "geometry-dash",
+    "name": "Geometry Dash",
+    "url": "https://geometrydashgame.io/",
+    "thumb": "",
+    "tags": ["action", "rhythm", "popular"]
+  },
+  {
+    "id": "pacman",
+    "name": "Pac-Man",
+    "url": "https://freepacman.org/",
+    "thumb": "",
+    "tags": ["puzzle", "classic", "arcade"]
+  },
+  {
+    "id": "flappy-bird",
+    "name": "Flappy Bird",
+    "url": "https://flappybird.io/",
+    "thumb": "",
+    "tags": ["action", "classic", "casual"]
+  },
+  {
+    "id": "basketball-stars",
+    "name": "Basketball Stars",
+    "url": "https://basketballstars.io/",
+    "thumb": "",
+    "tags": ["sports", "multiplayer"]
+  },
+  {
+    "id": "snow-rider-3d",
+    "name": "Snow Rider 3D",
+    "url": "https://snowrider3d.github.io/",
+    "thumb": "",
+    "tags": ["action", "3d", "popular"]
+  },
+  {
+    "id": "moto-x3m",
+    "name": "Moto X3M",
+    "url": "https://motox3m.io/",
+    "thumb": "",
+    "tags": ["racing", "action"]
+  },
+  {
+    "id": "btd",
+    "name": "Bloons TD",
+    "url": "https://btd.github.io/",
+    "thumb": "",
+    "tags": ["strategy", "tower-defense"]
+  }
+]

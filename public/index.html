@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Google</title>
+  <link rel="icon" href="https://www.google.com/favicon.ico" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <!-- Main app shell -->
+  <div id="app">
+    <!-- Top bar -->
+    <header id="topbar">
+      <div class="topbar-left">
+        <span class="logo">🌸 Blossom</span>
+      </div>
+      <div class="topbar-right">
+        <button id="btn-games" class="topbar-btn" title="Games">🎮</button>
+        <button id="btn-bookmarks" class="topbar-btn" title="Bookmarks">🔖</button>
+        <button id="btn-history" class="topbar-btn" title="History">🕐</button>
+        <button id="btn-settings" class="topbar-btn" title="Settings">⚙️</button>
+      </div>
+    </header>
+
+    <!-- Home view -->
+    <main id="home-view">
+      <div class="hero">
+        <h1 class="hero-title">Blossom</h1>
+        <p class="hero-sub">Browse freely.</p>
+        <form id="search-form" autocomplete="off">
+          <div class="search-wrap">
+            <input
+              id="search-input"
+              type="text"
+              placeholder="Search or enter URL"
+              spellcheck="false"
+              autofocus
+            />
+            <button type="submit" class="search-go">→</button>
+          </div>
+        </form>
+        <div id="search-error" class="error-msg" hidden></div>
+      </div>
+
+      <!-- Quick links -->
+      <section id="quick-links">
+        <h2>Quick Links</h2>
+        <div class="quick-grid">
+          <button class="quick-card" data-url="https://youtube.com">
+            <span class="quick-icon">▶</span>
+            <span>YouTube</span>
+          </button>
+          <button class="quick-card" data-url="https://discord.com/app">
+            <span class="quick-icon">💬</span>
+            <span>Discord</span>
+          </button>
+          <button class="quick-card" data-url="https://reddit.com">
+            <span class="quick-icon">📰</span>
+            <span>Reddit</span>
+          </button>
+          <button class="quick-card" data-url="https://spotify.com">
+            <span class="quick-icon">🎵</span>
+            <span>Spotify</span>
+          </button>
+          <button class="quick-card" data-url="https://twitter.com">
+            <span class="quick-icon">🐦</span>
+            <span>Twitter</span>
+          </button>
+          <button class="quick-card" data-url="https://instagram.com">
+            <span class="quick-icon">📷</span>
+            <span>Instagram</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Recently visited (populated by JS) -->
+      <section id="recent-section" hidden>
+        <h2>Recently Visited</h2>
+        <div id="recent-list" class="quick-grid"></div>
+      </section>
+    </main>
+
+    <!-- Proxy frame (hidden until navigation) -->
+    <iframe id="proxy-frame" hidden></iframe>
+
+    <!-- Games panel (slides in) -->
+    <div id="games-panel" class="side-panel" hidden>
+      <div class="panel-header">
+        <h2>Games</h2>
+        <input id="games-search" type="text" placeholder="Search games..." />
+        <div id="games-tags" class="tag-bar"></div>
+        <button class="panel-close" data-close="games-panel">✕</button>
+      </div>
+      <div id="games-grid" class="games-grid"></div>
+    </div>
+
+    <!-- Bookmarks panel -->
+    <div id="bookmarks-panel" class="side-panel" hidden>
+      <div class="panel-header">
+        <h2>Bookmarks</h2>
+        <button class="panel-close" data-close="bookmarks-panel">✕</button>
+      </div>
+      <div id="bookmarks-list" class="list-view"></div>
+      <p id="bookmarks-empty" class="empty-state">No bookmarks yet. Browse a site and tap 🔖 to save it.</p>
+    </div>
+
+    <!-- History panel -->
+    <div id="history-panel" class="side-panel" hidden>
+      <div class="panel-header">
+        <h2>History</h2>
+        <button id="clear-history" class="text-btn">Clear</button>
+        <button class="panel-close" data-close="history-panel">✕</button>
+      </div>
+      <div id="history-list" class="list-view"></div>
+      <p id="history-empty" class="empty-state">No browsing history yet.</p>
+    </div>
+
+    <!-- Settings panel -->
+    <div id="settings-panel" class="side-panel" hidden>
+      <div class="panel-header">
+        <h2>Settings</h2>
+        <button class="panel-close" data-close="settings-panel">✕</button>
+      </div>
+      <div class="settings-body">
+        <div class="setting-group">
+          <label>Tab Cloak</label>
+          <select id="setting-cloak">
+            <option value="google">Google</option>
+            <option value="classroom">Google Classroom</option>
+            <option value="drive">Google Drive</option>
+            <option value="canvas">Canvas</option>
+            <option value="khan">Khan Academy</option>
+            <option value="none">Off</option>
+          </select>
+        </div>
+        <div class="setting-group">
+          <label>About:Blank Cloaking</label>
+          <p class="setting-hint">Opens proxy in an about:blank popup. URL bar shows about:blank.</p>
+          <button id="setting-abcloak" class="btn">Launch in about:blank</button>
+        </div>
+        <div class="setting-group">
+          <label>Panic Key</label>
+          <p class="setting-hint">Press this key to instantly redirect away.</p>
+          <input id="setting-panic-key" type="text" value="`" maxlength="1" class="key-input" />
+        </div>
+        <div class="setting-group">
+          <label>Panic URL</label>
+          <select id="setting-panic-url">
+            <option value="https://classroom.google.com">Google Classroom</option>
+            <option value="https://www.google.com">Google</option>
+            <option value="https://www.khanacademy.org">Khan Academy</option>
+            <option value="https://canvas.instructure.com">Canvas</option>
+          </select>
+        </div>
+        <div class="setting-group">
+          <label>Search Engine</label>
+          <select id="setting-search-engine">
+            <option value="https://www.google.com/search?q=%s">Google</option>
+            <option value="https://duckduckgo.com/?q=%s">DuckDuckGo</option>
+            <option value="https://www.bing.com/search?q=%s">Bing</option>
+          </select>
+        </div>
+        <hr />
+        <div class="setting-group">
+          <label>Status</label>
+          <div id="status-widget">
+            <span id="status-dot" class="dot dot-checking"></span>
+            <span id="status-text">Checking...</span>
+          </div>
+        </div>
+        <div class="setting-group">
+          <p class="version-text">Blossom <span id="blossom-version">v1.0.0</span></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- CAPTCHA toast -->
+    <div id="captcha-toast" class="toast" hidden>
+      Solving a CAPTCHA? Complete it slowly — the proxy can sometimes loop if you go too fast.
+      <button class="toast-close" data-dismiss="captcha-toast">✕</button>
+    </div>
+
+    <!-- Error overlay -->
+    <div id="error-overlay" class="overlay" hidden>
+      <div class="error-card">
+        <h2>Something went wrong</h2>
+        <p id="error-detail"></p>
+        <div class="error-actions">
+          <button id="error-retry" class="btn">Retry</button>
+          <button id="error-home" class="btn btn-secondary">Go Home</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts: order matters -->
+  <script src="/scram/scramjet.all.js"></script>
+  <script src="/js/register-sw.js" type="module"></script>
+  <script src="/js/transport.js" type="module"></script>
+  <script src="/js/search.js" type="module"></script>
+  <script src="/js/cloak.js" type="module"></script>
+  <script src="/js/panic.js" type="module"></script>
+  <script src="/js/games.js" type="module"></script>
+  <script src="/js/bookmarks.js" type="module"></script>
+  <script src="/js/history.js" type="module"></script>
+  <script src="/js/mirrors.js" type="module"></script>
+  <script src="/js/settings.js" type="module"></script>
+  <script src="/js/app.js" type="module"></script>
+</body>
+</html>
