@@ -173,5 +173,96 @@
     "url": "https://btd.github.io/",
     "thumb": "",
     "tags": ["strategy", "tower-defense"]
+  },
+  {
+    "id": "wordle",
+    "name": "Wordle",
+    "url": "https://www.nytimes.com/games/wordle/index.html",
+    "thumb": "",
+    "tags": ["puzzle", "word", "popular"]
+  },
+  {
+    "id": "chess",
+    "name": "Chess",
+    "url": "https://www.chess.com/play/computer",
+    "thumb": "",
+    "tags": ["strategy", "classic", "board"]
+  },
+  {
+    "id": "checkers",
+    "name": "Checkers",
+    "url": "https://www.247checkers.com/",
+    "thumb": "",
+    "tags": ["strategy", "classic", "board"]
+  },
+  {
+    "id": "sudoku",
+    "name": "Sudoku",
+    "url": "https://sudoku.com/",
+    "thumb": "",
+    "tags": ["puzzle", "classic"]
+  },
+  {
+    "id": "solitaire",
+    "name": "Solitaire",
+    "url": "https://www.solitr.com/",
+    "thumb": "",
+    "tags": ["card", "classic"]
+  },
+  {
+    "id": "minesweeper",
+    "name": "Minesweeper",
+    "url": "https://minesweeper.online/",
+    "thumb": "",
+    "tags": ["puzzle", "classic"]
+  },
+  {
+    "id": "tiny-fishing",
+    "name": "Tiny Fishing",
+    "url": "https://tinyfishing.co/",
+    "thumb": "",
+    "tags": ["idle", "casual", "popular"]
+  },
+  {
+    "id": "temple-run-2",
+    "name": "Temple Run 2",
+    "url": "https://poki.com/en/g/temple-run-2",
+    "thumb": "",
+    "tags": ["action", "runner"]
+  },
+  {
+    "id": "krunker",
+    "name": "Krunker.io",
+    "url": "https://krunker.io/",
+    "thumb": "",
+    "tags": ["shooter", "multiplayer", "io", "popular"]
+  },
+  {
+    "id": "shell-shockers",
+    "name": "Shell Shockers",
+    "url": "https://shellshock.io/",
+    "thumb": "",
+    "tags": ["shooter", "multiplayer", "io"]
+  },
+  {
+    "id": "snake-html",
+    "name": "Snake",
+    "url": "/games/snake.html",
+    "thumb": "",
+    "tags": ["html", "classic", "arcade"]
+  },
+  {
+    "id": "breakout-html",
+    "name": "Breakout",
+    "url": "/games/breakout.html",
+    "thumb": "",
+    "tags": ["html", "classic", "arcade"]
+  },
+  {
+    "id": "memory-html",
+    "name": "Memory Match",
+    "url": "/games/memory.html",
+    "thumb": "",
+    "tags": ["html", "puzzle", "casual"]
   }
 ]

@@ -17,6 +17,7 @@ let scramjet = null;
 let scramjetFrame = null;
 let connection = null;
 let proxyActive = false;
+let currentUser = null;
 
 // --- Boot ---
 async function init() {
@@ -48,9 +49,24 @@ async function init() {
   // Init domain survival
   initMirrors(config.mirrors);
 
+  // Store user info
+  currentUser = config.user || null;
+
   // Version display
   const versionEl = document.getElementById("blossom-version");
   if (versionEl) versionEl.textContent = `v${config.version}`;
+
+  // Show admin link for dev users
+  if (currentUser?.role === "dev") {
+    const adminBtn = document.getElementById("btn-admin");
+    if (adminBtn) adminBtn.hidden = false;
+  }
+
+  // Show user display name
+  const userNameEl = document.getElementById("user-display-name");
+  if (userNameEl && currentUser) {
+    userNameEl.textContent = currentUser.displayName;
+  }
 
   // Register SW first — scramjet needs it running
   try {
@@ -75,6 +91,7 @@ async function init() {
   wireHistoryPanel();
   wireProxyToolbar();
   wireLogoClick();
+  wireAccount();
 
   // Check server health for status widget
   checkHealth();
@@ -215,10 +232,22 @@ async function navigateTo(url) {
   const frame = scramjet.createFrame();
   frame.frame.id = "proxy-frame";
   frame.frame.className = "proxy-frame with-toolbar";
+  // navigate fires immediately when a link is clicked (before load)
+  frame.addEventListener("navigate", (e) => {
+    console.log("[Blossom] Navigating:", e.url);
+    updateProxyUrlBar(e.url);
+  });
+
+  // urlchange fires after URL has actually changed (including pushState)
   frame.addEventListener("urlchange", (e) => {
     console.log("[Blossom] URL changed:", e.url);
     updateProxyUrlBar(e.url);
     updateBookmarkButton(e.url);
+    // Update tab title to show current site
+    try {
+      const hostname = new URL(e.url).hostname.replace("www.", "");
+      document.title = hostname + " — Blossom";
+    } catch {}
   });
 
   // Hide loading when frame loads
@@ -258,6 +287,9 @@ function goHome() {
   loadingOverlay.hidden = true;
   proxyActive = false;
   scramjetFrame = null;
+
+  // Restore tab title (re-apply cloak)
+  applyCloak();
 }
 
 // --- UI Wiring ---
@@ -405,7 +437,13 @@ function renderGamesGrid(query, tag) {
 
     card.addEventListener("click", () => {
       recordGamePlayed(game);
-      if (game.url) navigateTo(game.url);
+      if (!game.url) return;
+      // Local HTML games open directly in a new context
+      if (game.url.startsWith("/")) {
+        window.open(game.url, "_blank");
+      } else {
+        navigateTo(game.url);
+      }
     });
 
     container.appendChild(card);
@@ -543,15 +581,15 @@ function formatTime(ts) {
 function wireProxyToolbar() {
   document.getElementById("proxy-back").addEventListener("click", () => {
     if (!scramjetFrame) return;
-    try { scramjetFrame.frame.contentWindow.history.back(); } catch {}
+    scramjetFrame.back();
   });
   document.getElementById("proxy-forward").addEventListener("click", () => {
     if (!scramjetFrame) return;
-    try { scramjetFrame.frame.contentWindow.history.forward(); } catch {}
+    scramjetFrame.forward();
   });
   document.getElementById("proxy-reload").addEventListener("click", () => {
     if (!scramjetFrame) return;
-    try { scramjetFrame.frame.contentWindow.location.reload(); } catch {}
+    scramjetFrame.reload();
   });
   document.getElementById("proxy-home").addEventListener("click", goHome);
   document.getElementById("proxy-bookmark").addEventListener("click", () => {
@@ -568,9 +606,12 @@ function wireProxyToolbar() {
 
 function updateProxyUrlBar(url) {
   const urlText = document.getElementById("proxy-url-text");
+  // url can be a string (from events) or use frame.url (URL object)
   try {
-    const parsed = new URL(url);
-    urlText.textContent = parsed.hostname + parsed.pathname;
+    const parsed = typeof url === "string" ? new URL(url) : url;
+    const path = parsed.pathname === "/" ? "" : parsed.pathname;
+    urlText.textContent = parsed.hostname + path;
+    urlText.title = parsed.href;
   } catch {
     urlText.textContent = url;
   }
@@ -591,6 +632,36 @@ function wireLogoClick() {
     logo.style.cursor = "pointer";
     logo.addEventListener("click", () => {
       if (proxyActive) goHome();
+    });
+  }
+}
+
+function wireAccount() {
+  const logoutBtn = document.getElementById("btn-logout");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", async () => {
+      await fetch("/auth/logout", { method: "POST" });
+      window.location.replace("/login");
+    });
+  }
+
+  const adminBtn = document.getElementById("btn-admin");
+  if (adminBtn) {
+    adminBtn.addEventListener("click", () => {
+      window.location.href = "/admin";
+    });
+  }
+
+  // Settings panel account section
+  const settingsEmail = document.getElementById("settings-user-email");
+  if (settingsEmail && currentUser) {
+    settingsEmail.textContent = currentUser.displayName;
+  }
+  const settingsLogout = document.getElementById("setting-logout");
+  if (settingsLogout) {
+    settingsLogout.addEventListener("click", async () => {
+      await fetch("/auth/logout", { method: "POST" });
+      window.location.replace("/login");
     });
   }
 }

@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🌸</text></svg>" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d0d0f; --bg-card: #16161a; --bg-panel: #1a1a1f;
+      --bg-input: #22222a; --text: #e8e8ed; --text-dim: #8888a0;
+      --accent: #e8a0bf; --accent-hover: #f0b8d0; --danger: #e85050;
+      --success: #50c878; --radius: 12px; --radius-sm: 8px;
+    }
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg); color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+    [hidden] { display: none !important; }
+
+    .admin-shell {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 24px 16px 60px;
+    }
+
+    .admin-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+    }
+    .admin-header h1 {
+      font-size: 24px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #e8a0bf, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .admin-header .back-link {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    /* Stats */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid #2a2a30;
+      border-radius: var(--radius);
+      padding: 20px;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--accent);
+    }
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* Users table */
+    .section-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .user-count {
+      color: var(--text-dim);
+      font-weight: 400;
+      font-size: 13px;
+    }
+
+    .users-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid #2a2a30;
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .users-table th {
+      background: var(--bg-panel);
+      text-align: left;
+      padding: 10px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .users-table td {
+      padding: 10px 14px;
+      font-size: 13px;
+      border-top: 1px solid #1e1e24;
+    }
+    .users-table tr:hover td {
+      background: var(--bg-card);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-dev { background: #6c3483; color: #e8d0f0; }
+    .badge-user { background: #2a2a36; color: var(--text-dim); }
+
+    .feature-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin: 2px;
+    }
+    .feature-toggle input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 14px;
+      height: 14px;
+    }
+    .feature-toggle label {
+      font-size: 11px;
+      color: var(--text-dim);
+      cursor: pointer;
+    }
+
+    .btn-sm {
+      background: none;
+      border: 1px solid #2a2a30;
+      color: var(--text-dim);
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-sm:hover { border-color: var(--accent); color: var(--text); }
+    .btn-sm.danger:hover { border-color: var(--danger); color: var(--danger); }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-dim);
+    }
+
+    @media (max-width: 600px) {
+      .users-table { font-size: 12px; }
+      .users-table th, .users-table td { padding: 8px 8px; }
+      .stat-card { padding: 14px; }
+      .stat-value { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-shell">
+    <div class="admin-header">
+      <h1>Blossom Admin</h1>
+      <a href="/" class="back-link">← Back to App</a>
+    </div>
+
+    <div id="stats-grid" class="stats-grid">
+      <div class="stat-card"><div class="stat-value" id="stat-users">-</div><div class="stat-label">Total Users</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-active">-</div><div class="stat-label">Active Sessions</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-signups">-</div><div class="stat-label">Signups (7d)</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-memory">-</div><div class="stat-label">Memory (MB)</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-uptime">-</div><div class="stat-label">Uptime</div></div>
+    </div>
+
+    <div class="section-title">
+      Users <span class="user-count" id="user-count"></span>
+    </div>
+    <div id="users-container">
+      <p class="loading">Loading users...</p>
+    </div>
+  </div>
+
+  <script>
+    // Auth check
+    fetch("/auth/me").then(r => {
+      if (!r.ok) return window.location.replace("/login");
+      return r.json();
+    }).then(data => {
+      if (!data || data.user.role !== "dev") return window.location.replace("/");
+      loadDashboard();
+    });
+
+    const FEATURES = ["proxy", "games", "bookmarks", "settings"];
+
+    async function loadDashboard() {
+      await Promise.all([loadStats(), loadUsers()]);
+      // Refresh stats every 30s
+      setInterval(loadStats, 30000);
+    }
+
+    async function loadStats() {
+      try {
+        const res = await fetch("/admin/api/stats");
+        const s = await res.json();
+        document.getElementById("stat-users").textContent = s.totalUsers;
+        document.getElementById("stat-active").textContent = s.activeSessions;
+        document.getElementById("stat-signups").textContent = s.recentSignups7d;
+        document.getElementById("stat-memory").textContent = s.memoryMB;
+        const h = Math.floor(s.uptime / 3600);
+        const m = Math.floor((s.uptime % 3600) / 60);
+        document.getElementById("stat-uptime").textContent = h > 0 ? `${h}h ${m}m` : `${m}m`;
+      } catch {}
+    }
+
+    async function loadUsers() {
+      const container = document.getElementById("users-container");
+      try {
+        const res = await fetch("/admin/api/users");
+        const users = await res.json();
+        document.getElementById("user-count").textContent = `(${users.length})`;
+        renderUsersTable(users, container);
+      } catch {
+        container.innerHTML = '<p class="loading">Failed to load users</p>';
+      }
+    }
+
+    function renderUsersTable(users, container) {
+      const table = document.createElement("table");
+      table.className = "users-table";
+
+      const thead = document.createElement("thead");
+      thead.innerHTML = `<tr><th>User</th><th>Role</th><th>Features</th><th>Joined</th><th>Last Login</th><th></th></tr>`;
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+      for (const user of users) {
+        const tr = document.createElement("tr");
+
+        // User info
+        const tdUser = document.createElement("td");
+        const nameDiv = document.createElement("div");
+        nameDiv.style.fontWeight = "600";
+        nameDiv.textContent = user.displayName;
+        const emailDiv = document.createElement("div");
+        emailDiv.style.fontSize = "11px";
+        emailDiv.style.color = "var(--text-dim)";
+        emailDiv.textContent = user.email;
+        tdUser.appendChild(nameDiv);
+        tdUser.appendChild(emailDiv);
+        tr.appendChild(tdUser);
+
+        // Role
+        const tdRole = document.createElement("td");
+        const badge = document.createElement("span");
+        badge.className = `badge badge-${user.role}`;
+        badge.textContent = user.role;
+        tdRole.appendChild(badge);
+        tr.appendChild(tdRole);
+
+        // Features
+        const tdFeatures = document.createElement("td");
+        for (const feat of FEATURES) {
+          const toggle = document.createElement("span");
+          toggle.className = "feature-toggle";
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.checked = !!user.features[feat];
+          cb.id = `feat-${user.id}-${feat}`;
+          cb.addEventListener("change", () => toggleFeature(user.id, user.features, feat, cb.checked));
+          const lbl = document.createElement("label");
+          lbl.htmlFor = cb.id;
+          lbl.textContent = feat;
+          toggle.appendChild(cb);
+          toggle.appendChild(lbl);
+          tdFeatures.appendChild(toggle);
+        }
+        tr.appendChild(tdFeatures);
+
+        // Joined
+        const tdJoined = document.createElement("td");
+        tdJoined.textContent = user.createdAt ? new Date(user.createdAt * 1000).toLocaleDateString() : "-";
+        tr.appendChild(tdJoined);
+
+        // Last login
+        const tdLast = document.createElement("td");
+        tdLast.textContent = user.lastLogin ? timeAgo(user.lastLogin * 1000) : "Never";
+        tr.appendChild(tdLast);
+
+        // Actions
+        const tdAction = document.createElement("td");
+        if (user.role !== "dev") {
+          const delBtn = document.createElement("button");
+          delBtn.className = "btn-sm danger";
+          delBtn.textContent = "Delete";
+          delBtn.addEventListener("click", () => deleteUserAction(user.id, user.email));
+          tdAction.appendChild(delBtn);
+        }
+        tr.appendChild(tdAction);
+
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+      container.innerHTML = "";
+      container.appendChild(table);
+    }
+
+    async function toggleFeature(userId, features, feat, value) {
+      features[feat] = value;
+      await fetch(`/admin/api/users/${userId}/features`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(features),
+      });
+    }
+
+    async function deleteUserAction(userId, email) {
+      if (!confirm(`Delete user ${email}?`)) return;
+      await fetch(`/admin/api/users/${userId}`, { method: "DELETE" });
+      loadUsers();
+      loadStats();
+    }
+
+    function timeAgo(ts) {
+      const diff = Date.now() - ts;
+      if (diff < 60000) return "Just now";
+      if (diff < 3600000) return Math.floor(diff / 60000) + "m ago";
+      if (diff < 86400000) return Math.floor(diff / 3600000) + "h ago";
+      return Math.floor(diff / 86400000) + "d ago";
+    }
+  </script>
+</body>
+</html>

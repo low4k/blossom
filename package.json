@@ -10,17 +10,22 @@
     "start": "node server.js",
     "dev": "node --watch server.js"
   },
-  "keywords": ["proxy", "unblocker"],
+  "keywords": [
+    "proxy",
+    "unblocker"
+  ],
   "author": "Blossom",
   "license": "AGPL-3.0",
   "dependencies": {
-    "@mercuryworkshop/scramjet": "https://github.com/MercuryWorkshop/scramjet/releases/download/latest/mercuryworkshop-scramjet-2.0.0-alpha.tgz",
     "@mercuryworkshop/bare-mux": "^2.1.8",
     "@mercuryworkshop/epoxy-transport": "^2.1.28",
+    "@mercuryworkshop/scramjet": "https://github.com/MercuryWorkshop/scramjet/releases/download/latest/mercuryworkshop-scramjet-2.0.0-alpha.tgz",
     "@mercuryworkshop/wisp-js": "^0.3.3",
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.9.0",
+    "compression": "^1.7.4",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
-    "compression": "^1.7.4",
     "helmet": "^8.0.0",
     "ws": "^8.18.3"
   }

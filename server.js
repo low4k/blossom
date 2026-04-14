@@ -12,6 +12,9 @@ import { baremuxPath } from "@mercuryworkshop/bare-mux/node";
 
 import config from "./config.js";
 import { healthHandler } from "./health.js";
+import { authRouter, requireAuth, COOKIE_NAME, parseCookie } from "./auth.js";
+import { adminRouter } from "./admin.js";
+import { validateSession } from "./db.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const publicPath = path.join(__dirname, "public");
@@ -63,8 +66,54 @@ app.use(rateLimit(config.rateLimit));
 // --- Health endpoint ---
 app.get("/health", healthHandler);
 
+// --- Auth routes (no auth required for these) ---
+app.use("/auth", authRouter);
+
+// --- Login page (accessible without auth) ---
+app.get("/login", (_req, res) => {
+  res.sendFile(path.join(publicPath, "login.html"));
+});
+
+// --- Auth middleware: everything below requires login ---
+app.use((req, res, next) => {
+  // Allow unauthenticated access to static assets needed by login page
+  const publicPaths = ["/styles.css", "/login.html"];
+  if (publicPaths.some((p) => req.path === p)) return next();
+
+  // Allow scramjet/epoxy/baremux static assets (needed by SW after auth)
+  if (req.path.startsWith(config.proxyPrefix) || req.path.startsWith("/epoxy/") || req.path.startsWith("/baremux/")) {
+    return next();
+  }
+
+  // Allow service worker and its scope
+  if (req.path === "/sw.js" || req.path.startsWith("/scramjet/")) {
+    return next();
+  }
+
+  const token = parseCookie(req.headers.cookie, COOKIE_NAME);
+  const user = validateSession(token);
+  if (!user) {
+    // API requests get 401, page requests get redirected
+    if (req.headers.accept?.includes("application/json") || req.path.startsWith("/admin/api")) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    return res.redirect("/login");
+  }
+  req.user = user;
+  next();
+});
+
+// --- Admin routes (requires dev role) ---
+app.use("/admin", adminRouter);
+
+// --- Admin page ---
+app.get("/admin", (req, res) => {
+  if (req.user?.role !== "dev") return res.redirect("/");
+  res.sendFile(path.join(publicPath, "admin.html"));
+});
+
 // --- Inject config into frontend ---
-app.get("/blossom-config.json", (_req, res) => {
+app.get("/blossom-config.json", (req, res) => {
   res.json({
     proxyPrefix: config.proxyPrefix,
     wispPath: config.wispPath,
@@ -72,6 +121,12 @@ app.get("/blossom-config.json", (_req, res) => {
     version: config.version,
     defaultCloak: config.defaultCloak,
     defaultPanicUrl: config.defaultPanicUrl,
+    user: req.user ? {
+      id: req.user.id,
+      displayName: req.user.displayName,
+      role: req.user.role,
+      features: req.user.features,
+    } : null,
   });
 });
 
@@ -98,8 +153,13 @@ app.use("/baremux/", express.static(baremuxPath, {
 // Frontend
 app.use(express.static(publicPath));
 
-// SPA fallback — serve index.html for unmatched routes
-app.get("*", (_req, res) => {
+// SPA fallback — serve index.html for unmatched routes (auth already checked above)
+app.get("*", (req, res) => {
+  // Admin page
+  if (req.path === "/admin" || req.path === "/admin/") {
+    if (req.user?.role !== "dev") return res.redirect("/");
+    return res.sendFile(path.join(publicPath, "admin.html"));
+  }
   res.sendFile(path.join(publicPath, "index.html"));
 });
 
