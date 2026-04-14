@@ -54,8 +54,8 @@ async function init() {
     console.error("[Blossom] SW registration failed:", err);
   }
 
-  // Init Scramjet (synchronous setup, init() is fire-and-forget)
-  initScramjet();
+  // Init Scramjet (must complete before user can navigate)
+  await initScramjet();
 
   // Load games
   await loadGames();
@@ -66,7 +66,6 @@ async function init() {
   wireQuickLinks();
   wirePanels();
   wireGames();
-  wireBookmarks();
   wireHistoryPanel();
 
   // Check server health for status widget
@@ -79,7 +78,7 @@ async function init() {
 }
 
 // --- Scramjet Setup ---
-function initScramjet() {
+async function initScramjet() {
   if (typeof $scramjetLoadController !== "function") {
     console.error("[Blossom] $scramjetLoadController not found. Check that /scram/scramjet.all.js is loaded.");
     return;
@@ -98,12 +97,22 @@ function initScramjet() {
       },
     });
 
-    // Fire-and-forget — config will be in IDB by the time user clicks
-    scramjet.init().then(() => {
+    // Init scramjet — if IDB has stale schema from old deployment, nuke and retry
+    try {
+      await scramjet.init();
       console.log("[Blossom] ScramjetController initialized");
-    }).catch((err) => {
-      console.error("[Blossom] ScramjetController init error:", err);
-    });
+    } catch (err) {
+      console.warn("[Blossom] Init failed, clearing stale IDB:", err.message);
+      const dbs = await indexedDB.databases();
+      for (const db of dbs) {
+        if (db.name && db.name.toLowerCase().includes("scramjet")) {
+          indexedDB.deleteDatabase(db.name);
+          console.log("[Blossom] Deleted stale DB:", db.name);
+        }
+      }
+      await scramjet.init();
+      console.log("[Blossom] ScramjetController initialized (after IDB cleanup)");
+    }
 
     // Set up BareMux connection (transport set on-demand in navigateTo)
     if (typeof BareMux !== "undefined") {

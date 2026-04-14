@@ -4,18 +4,28 @@ importScripts("/scram/scramjet.all.js");
 
 const { ScramjetServiceWorker } = $scramjetLoadWorker();
 const scramjet = new ScramjetServiceWorker();
+let configLoaded = false;
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
 
-async function handleRequest(event) {
-  await scramjet.loadConfig();
-  if (scramjet.route(event)) {
-    return scramjet.fetch(event);
-  }
-  return fetch(event.request);
-}
-
 self.addEventListener("fetch", (event) => {
-  event.respondWith(handleRequest(event));
+  event.respondWith(
+    (async () => {
+      try {
+        if (!configLoaded) {
+          await scramjet.loadConfig();
+          configLoaded = true;
+        }
+        if (scramjet.route(event)) {
+          return await scramjet.fetch(event);
+        }
+      } catch (err) {
+        // Config not ready yet or proxy error — fall through to normal fetch
+        configLoaded = false;
+        console.error("[Blossom SW]", err.message);
+      }
+      return fetch(event.request);
+    })()
+  );
 });
