@@ -114,10 +114,15 @@ async function initScramjet() {
       console.log("[Blossom] ScramjetController initialized (after IDB cleanup)");
     }
 
-    // Set up BareMux connection (transport set on-demand in navigateTo)
+    // Set up BareMux connection and transport IMMEDIATELY
+    // Transport must be configured before any proxy request is made
     if (typeof BareMux !== "undefined") {
       connection = new BareMux.BareMuxConnection("/baremux/worker.js");
-      console.log("[Blossom] BareMux connection created");
+      const wispUrl =
+        (location.protocol === "https:" ? "wss" : "ws") +
+        "://" + location.host + (config.wispPath || "/wisp/");
+      await connection.setTransport("/epoxy/index.mjs", [{ wisp: wispUrl }]);
+      console.log("[Blossom] BareMux transport set: epoxy -> " + wispUrl);
     } else {
       console.error("[Blossom] BareMux not loaded. Check that /baremux/index.js is included.");
     }
@@ -126,15 +131,24 @@ async function initScramjet() {
   }
 }
 
-// --- Ensure transport is ready ---
+// --- Ensure transport is ready (safety net — transport should already be set from init) ---
 async function ensureTransport() {
-  if (!connection) return;
+  if (!connection) {
+    if (typeof BareMux !== "undefined") {
+      connection = new BareMux.BareMuxConnection("/baremux/worker.js");
+    } else {
+      throw new Error("BareMux not available");
+    }
+  }
   const wispUrl =
     (location.protocol === "https:" ? "wss" : "ws") +
     "://" + location.host + (config.wispPath || "/wisp/");
-  if ((await connection.getTransport()) !== "/epoxy/index.mjs") {
+  try {
+    const t = await connection.getTransport();
+    if (!t) throw new Error("no transport");
+  } catch {
     await connection.setTransport("/epoxy/index.mjs", [{ wisp: wispUrl }]);
-    console.log("[Blossom] Transport set: epoxy -> " + wispUrl);
+    console.log("[Blossom] Transport re-set: epoxy -> " + wispUrl);
   }
 }
 

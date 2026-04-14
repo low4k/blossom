@@ -17,6 +17,16 @@ export async function registerSW() {
 
   await navigator.serviceWorker.register(SW_PATH);
   await navigator.serviceWorker.ready;
+
+  // Wait for controller to be available (skipWaiting + clients.claim fires this)
+  // This is required so that ScramjetController.init() can postMessage to the SW
+  if (!navigator.serviceWorker.controller) {
+    await new Promise((resolve) => {
+      navigator.serviceWorker.addEventListener("controllerchange", resolve, { once: true });
+      setTimeout(resolve, 3000); // Fallback timeout
+    });
+  }
+
   swReady = true;
   return true;
 }
