@@ -289,12 +289,46 @@ body {
   color: var(--text-dim);
 }
 
-#proxy-url-text {
+#proxy-url-input {
+  flex: 1;
   font-size: 13px;
   color: var(--text-dim);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  background: none;
+  border: none;
+  outline: none;
+  min-width: 0;
+  font-family: inherit;
+}
+#proxy-url-input::placeholder {
+  color: var(--text-dim);
+  opacity: 0.6;
+}
+#proxy-url-input:focus {
+  color: var(--text);
+}
+
+/* Expand button (shown when toolbar is collapsed) */
+.proxy-expand-btn {
+  position: fixed;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 91;
+  background: var(--bg-panel);
+  border: 1px solid #2a2a30;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 2px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition), color var(--transition);
+}
+.proxy-expand-btn:hover {
+  background: var(--bg-input);
+  color: var(--text);
 }
 
 /* Adjust proxy frame position when toolbar is visible */
@@ -722,6 +756,9 @@ hr {
   .quick-grid { grid-template-columns: repeat(3, 1fr); }
   .games-grid { grid-template-columns: repeat(2, 1fr); }
   .side-panel { max-width: 100%; }
+  #proxy-toolbar { gap: 2px; padding: 6px 6px; }
+  .proxy-nav-btn { width: 28px; height: 28px; }
+  .proxy-url-bar { padding: 4px 10px; }
 }
 
 @media (min-width: 481px) and (max-width: 768px) {

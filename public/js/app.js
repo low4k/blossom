@@ -18,6 +18,7 @@ let scramjetFrame = null;
 let connection = null;
 let proxyActive = false;
 let currentUser = null;
+let currentProxyUrl = ""; // Track full URL for bookmarks
 
 // --- Boot ---
 async function init() {
@@ -255,12 +256,14 @@ async function navigateTo(url) {
   // navigate fires immediately when a link is clicked (before load)
   frame.addEventListener("navigate", (e) => {
     console.log("[Blossom] Navigating:", e.url);
+    currentProxyUrl = e.url;
     updateProxyUrlBar(e.url);
   });
 
   // urlchange fires after URL has actually changed (including pushState)
   frame.addEventListener("urlchange", (e) => {
     console.log("[Blossom] URL changed:", e.url);
+    currentProxyUrl = e.url;
     updateProxyUrlBar(e.url);
     updateBookmarkButton(e.url);
     // Update tab title to show current site
@@ -268,6 +271,16 @@ async function navigateTo(url) {
       const hostname = new URL(e.url).hostname.replace("www.", "");
       document.title = hostname + " — Blossom";
     } catch {}
+  });
+
+  // Block popups: intercept window.open inside the proxied page
+  frame.frame.addEventListener("load", () => {
+    try {
+      const fw = frame.frame.contentWindow;
+      if (fw) {
+        fw.open = () => null; // Block window.open popups
+      }
+    } catch { /* cross-origin, ignore */ }
   });
 
   // Hide loading when frame loads
@@ -300,13 +313,16 @@ function goHome() {
   const homeView = document.getElementById("home-view");
   const proxyToolbar = document.getElementById("proxy-toolbar");
   const loadingOverlay = document.getElementById("loading-overlay");
+  const expandBtn = document.getElementById("proxy-expand");
 
   if (frame) frame.remove();
   homeView.style.display = "";
   proxyToolbar.hidden = true;
   loadingOverlay.hidden = true;
+  if (expandBtn) expandBtn.hidden = true;
   proxyActive = false;
   scramjetFrame = null;
+  currentProxyUrl = "";
 
   // Restore tab title (re-apply cloak)
   applyCloak();
@@ -612,28 +628,70 @@ function wireProxyToolbar() {
     scramjetFrame.reload();
   });
   document.getElementById("proxy-home").addEventListener("click", goHome);
+
+  // Bookmark button — use full tracked URL
   document.getElementById("proxy-bookmark").addEventListener("click", () => {
-    const urlText = document.getElementById("proxy-url-text").textContent;
-    if (!urlText || urlText === "Loading...") return;
-    if (isBookmarked(urlText)) {
-      removeBookmark(urlText);
+    if (!currentProxyUrl) return;
+    if (isBookmarked(currentProxyUrl)) {
+      removeBookmark(currentProxyUrl);
     } else {
-      addBookmark(urlText, urlText);
+      let title = currentProxyUrl;
+      try { title = new URL(currentProxyUrl).hostname; } catch {}
+      addBookmark(currentProxyUrl, title);
     }
-    updateBookmarkButton(urlText);
+    updateBookmarkButton(currentProxyUrl);
+  });
+
+  // Editable URL bar — Enter navigates to typed URL
+  const urlInput = document.getElementById("proxy-url-input");
+  urlInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const val = urlInput.value.trim();
+      if (!val) return;
+      navigateTo(val);
+    }
+  });
+  // Select all on focus for easy replacing
+  urlInput.addEventListener("focus", () => urlInput.select());
+
+  // Collapse toolbar
+  document.getElementById("proxy-collapse").addEventListener("click", () => {
+    const toolbar = document.getElementById("proxy-toolbar");
+    const expandBtn = document.getElementById("proxy-expand");
+    const frame = document.getElementById("proxy-frame");
+    toolbar.hidden = true;
+    expandBtn.hidden = false;
+    if (frame) {
+      frame.classList.remove("with-toolbar");
+    }
+  });
+
+  // Expand toolbar
+  document.getElementById("proxy-expand").addEventListener("click", () => {
+    const toolbar = document.getElementById("proxy-toolbar");
+    const expandBtn = document.getElementById("proxy-expand");
+    const frame = document.getElementById("proxy-frame");
+    toolbar.hidden = false;
+    expandBtn.hidden = true;
+    if (frame) {
+      frame.classList.add("with-toolbar");
+    }
   });
 }
 
 function updateProxyUrlBar(url) {
-  const urlText = document.getElementById("proxy-url-text");
-  // url can be a string (from events) or use frame.url (URL object)
+  const urlInput = document.getElementById("proxy-url-input");
+  // Show hostname+path in the bar, store full URL in currentProxyUrl
   try {
     const parsed = typeof url === "string" ? new URL(url) : url;
     const path = parsed.pathname === "/" ? "" : parsed.pathname;
-    urlText.textContent = parsed.hostname + path;
-    urlText.title = parsed.href;
+    urlInput.value = parsed.hostname + path;
+    urlInput.title = parsed.href;
+    currentProxyUrl = parsed.href;
   } catch {
-    urlText.textContent = url;
+    urlInput.value = url;
+    currentProxyUrl = url;
   }
 }
 

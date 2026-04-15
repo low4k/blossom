@@ -142,20 +142,23 @@ app.get("/blossom-config.json", (req, res) => {
 });
 
 // --- Static file serving ---
-// Scramjet engine files
+// Scramjet engine files (immutable between deploys, cache aggressively)
 app.use(config.proxyPrefix, express.static(scramjetPath, {
+  maxAge: "1d",
   setHeaders: (res) => {
     res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
   }
 }));
 
-// Transport files
+// Transport files (also cacheable)
 app.use(config.epoxyPrefix, express.static(epoxyPath, {
+  maxAge: "1d",
   setHeaders: (res) => {
     res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
   }
 }));
 app.use(config.baremuxPrefix, express.static(baremuxPath, {
+  maxAge: "1d",
   setHeaders: (res) => {
     res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
   }

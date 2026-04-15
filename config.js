@@ -64,7 +64,7 @@ const config = {
   defaultPanicUrl: "https://classroom.google.com",
 
   // Build version — increment on deploys so SW knows to update
-  version: "1.2.0",
+  version: "1.3.0",
 };
 
 export default config;
