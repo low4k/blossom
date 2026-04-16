@@ -1,6 +1,6 @@
 {
   "name": "blossom",
-  "version": "1.0.0",
+  "version": "1.4.0",
   "description": "Blossom — a modern web proxy unblocker with smart transport fallback, domain survival, and mobile-first UI.",
   "type": "module",
   "engines": {
@@ -8,7 +8,8 @@
   },
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "test": "node test/smoke.js"
   },
   "keywords": [
     "proxy",

@@ -10,11 +10,13 @@ let swReady = false;
 async function purgeStaleData() {
   console.log("[Blossom] Purging stale SW data...");
 
-  // 1. Unregister all service workers
+  // 1. Unregister only OUR service workers (scope-aware, safe on shared origins)
   const regs = await navigator.serviceWorker.getRegistrations();
   for (const reg of regs) {
-    await reg.unregister();
-    console.log("[Blossom] Unregistered SW:", reg.scope);
+    if (reg.active?.scriptURL?.includes("/sw.js") || reg.scope.endsWith("/")) {
+      await reg.unregister();
+      console.log("[Blossom] Unregistered SW:", reg.scope);
+    }
   }
 
   // 2. Clear all caches

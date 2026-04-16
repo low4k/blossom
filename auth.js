@@ -11,26 +11,8 @@ import {
 } from "./db.js";
 
 const router = Router();
-router.use(express_json());
 
-function express_json() {
-  return (req, res, next) => {
-    if (req.headers["content-type"]?.includes("application/json")) {
-      let body = "";
-      req.on("data", (chunk) => (body += chunk));
-      req.on("end", () => {
-        try {
-          req.body = JSON.parse(body);
-        } catch {
-          req.body = {};
-        }
-        next();
-      });
-    } else {
-      next();
-    }
-  };
-}
+// Body parsing is handled globally by express.json() in server.js
 
 const COOKIE_NAME = "_bsid"; // Innocent-looking cookie name
 const COOKIE_OPTS = {

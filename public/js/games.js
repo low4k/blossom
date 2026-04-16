@@ -20,6 +20,7 @@ export async function loadGames() {
 export function getGames() { return gamesManifest; }
 export function getFavorites() { return favorites; }
 export function getRecentGames() { return recentGames; }
+export function getGameById(id) { return gamesManifest.find(g => g.id === id) || null; }
 
 export function getAllTags() {
   const tags = new Set();

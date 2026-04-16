@@ -1,7 +1,6 @@
 // Health check endpoint — exposes server status as JSON
-// No existing proxy site does this
 
-import { performance } from "node:perf_hooks";
+import config from "./config.js";
 
 const startTime = Date.now();
 
@@ -11,7 +10,7 @@ export function healthHandler(_req, res) {
 
   res.json({
     status: "ok",
-    version: process.env.npm_package_version || "1.0.0",
+    version: config.version,
     uptime,
     memory: {
       rss: Math.round(mem.rss / 1024 / 1024),

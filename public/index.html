@@ -90,6 +90,37 @@
       </section>
     </main>
 
+    <!-- Games view (full-screen, replaces home when visible) -->
+    <main id="games-view" hidden>
+      <div class="games-view-header">
+        <div class="games-view-top">
+          <button id="games-back" class="topbar-btn" title="Back to Home">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <h1 class="games-view-title">Games</h1>
+          <div class="games-view-search">
+            <input id="games-search" type="text" placeholder="Search games..." autocomplete="off" spellcheck="false" />
+          </div>
+        </div>
+        <div id="games-tags" class="tag-bar"></div>
+      </div>
+
+      <section id="games-fav-section" class="games-section" hidden>
+        <h2 class="games-section-title">⭐ Favorites</h2>
+        <div id="games-fav-grid" class="games-full-grid"></div>
+      </section>
+
+      <section id="games-recent-section" class="games-section" hidden>
+        <h2 class="games-section-title">🕐 Recently Played</h2>
+        <div id="games-recent-grid" class="games-full-grid"></div>
+      </section>
+
+      <section class="games-section">
+        <h2 class="games-section-title">🎮 All Games</h2>
+        <div id="games-grid" class="games-full-grid"></div>
+      </section>
+    </main>
+
     <!-- Proxy navigation toolbar (visible when proxy is active) -->
     <div id="proxy-toolbar" hidden>
       <button id="proxy-back" class="proxy-nav-btn" title="Back">
@@ -128,17 +159,6 @@
     </button>
 
     <!-- Proxy frame is created dynamically by ScramjetController.createFrame() -->
-
-    <!-- Games panel (slides in) -->
-    <div id="games-panel" class="side-panel" hidden>
-      <div class="panel-header">
-        <h2>Games</h2>
-        <input id="games-search" type="text" placeholder="Search games..." />
-        <div id="games-tags" class="tag-bar"></div>
-        <button class="panel-close" data-close="games-panel">✕</button>
-      </div>
-      <div id="games-grid" class="games-grid"></div>
-    </div>
 
     <!-- Bookmarks panel -->
     <div id="bookmarks-panel" class="side-panel" hidden>

@@ -14,7 +14,11 @@ import config from "./config.js";
 import { healthHandler } from "./health.js";
 import { authRouter, requireAuth, COOKIE_NAME, parseCookie } from "./auth.js";
 import { adminRouter } from "./admin.js";
-import { validateSession } from "./db.js";
+import {
+  validateSession,
+  getUserBookmarks, addUserBookmark, removeUserBookmark,
+  getUserHistory, addUserHistory, clearUserHistory, updateUserHistoryTitle,
+} from "./db.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const publicPath = path.join(__dirname, "public");
@@ -63,14 +67,24 @@ app.use((_req, res, next) => {
 // Gzip compression for static assets
 app.use(compression());
 
-// Rate limiting per IP
+// JSON body parsing with size limit
+app.use(express.json({ limit: "100kb" }));
+
+// Rate limiting — stricter for auth routes, lenient for general
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts, try again later" },
+});
 app.use(rateLimit(config.rateLimit));
 
 // --- Health endpoint ---
 app.get("/health", healthHandler);
 
 // --- Auth routes (no auth required for these) ---
-app.use("/auth", authRouter);
+app.use("/auth", authLimiter, authRouter);
 
 // --- Login page (accessible without auth) ---
 app.get("/login", (_req, res) => {
@@ -113,6 +127,45 @@ app.use((req, res, next) => {
 
 // --- Admin routes (requires dev role) ---
 app.use("/admin", adminRouter);
+
+// --- Sync API routes (requires auth) ---
+// Bookmarks
+app.get("/api/bookmarks", requireAuth, (req, res) => {
+  res.json(getUserBookmarks(req.user.id));
+});
+app.post("/api/bookmarks", requireAuth, (req, res) => {
+  const { url, title } = req.body || {};
+  if (!url) return res.status(400).json({ error: "url is required" });
+  addUserBookmark(req.user.id, url, title || "");
+  res.json({ ok: true });
+});
+app.delete("/api/bookmarks", requireAuth, (req, res) => {
+  const { url } = req.body || {};
+  if (!url) return res.status(400).json({ error: "url is required" });
+  removeUserBookmark(req.user.id, url);
+  res.json({ ok: true });
+});
+
+// History
+app.get("/api/history", requireAuth, (req, res) => {
+  res.json(getUserHistory(req.user.id));
+});
+app.post("/api/history", requireAuth, (req, res) => {
+  const { url, title } = req.body || {};
+  if (!url) return res.status(400).json({ error: "url is required" });
+  addUserHistory(req.user.id, url, title || "");
+  res.json({ ok: true });
+});
+app.delete("/api/history", requireAuth, (_req, res) => {
+  clearUserHistory(_req.user.id);
+  res.json({ ok: true });
+});
+app.patch("/api/history", requireAuth, (req, res) => {
+  const { url, title } = req.body || {};
+  if (!url || !title) return res.status(400).json({ error: "url and title are required" });
+  updateUserHistoryTitle(req.user.id, url, title);
+  res.json({ ok: true });
+});
 
 // --- Admin page ---
 app.get("/admin", (req, res) => {

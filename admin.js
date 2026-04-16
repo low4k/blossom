@@ -37,36 +37,23 @@ router.get("/api/users", (_req, res) => {
 // PUT /admin/api/users/:id/features
 router.put("/api/users/:id/features", (req, res) => {
   const userId = parseInt(req.params.id, 10);
-  let body = "";
-  req.on("data", (chunk) => (body += chunk));
-  req.on("end", () => {
-    try {
-      const features = JSON.parse(body);
-      updateUserFeatures(userId, features);
-      res.json({ ok: true });
-    } catch {
-      res.status(400).json({ error: "Invalid JSON" });
-    }
-  });
+  const features = req.body;
+  if (!features || typeof features !== "object") {
+    return res.status(400).json({ error: "Invalid features object" });
+  }
+  updateUserFeatures(userId, features);
+  res.json({ ok: true });
 });
 
 // PUT /admin/api/users/:id/role
 router.put("/api/users/:id/role", (req, res) => {
   const userId = parseInt(req.params.id, 10);
-  let body = "";
-  req.on("data", (chunk) => (body += chunk));
-  req.on("end", () => {
-    try {
-      const { role } = JSON.parse(body);
-      if (!["user", "dev"].includes(role)) {
-        return res.status(400).json({ error: "Invalid role" });
-      }
-      updateUserRole(userId, role);
-      res.json({ ok: true });
-    } catch {
-      res.status(400).json({ error: "Invalid JSON" });
-    }
-  });
+  const { role } = req.body || {};
+  if (!role || !["user", "dev"].includes(role)) {
+    return res.status(400).json({ error: "Invalid role" });
+  }
+  updateUserRole(userId, role);
+  res.json({ ok: true });
 });
 
 // DELETE /admin/api/users/:id

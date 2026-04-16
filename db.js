@@ -40,6 +40,26 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
   CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
+
+  CREATE TABLE IF NOT EXISTS bookmarks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+    UNIQUE(user_id, url)
+  );
+
+  CREATE TABLE IF NOT EXISTS history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    visited_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON bookmarks(user_id);
+  CREATE INDEX IF NOT EXISTS idx_history_user ON history(user_id);
 `);
 
 // Default features for new users
@@ -50,9 +70,9 @@ const DEFAULT_FEATURES = {
   settings: true,
 };
 
-// --- Seed dev account ---
-const DEV_EMAIL = "vendint3@gmail.com";
-const DEV_PASS = "january1311";
+// --- Seed dev account (from env vars, with fallback during development) ---
+const DEV_EMAIL = process.env.DEV_EMAIL || "vendint3@gmail.com";
+const DEV_PASS = process.env.DEV_PASS || "january1311";
 
 const existingDev = db.prepare("SELECT id FROM users WHERE email = ?").get(DEV_EMAIL);
 if (!existingDev) {
@@ -66,6 +86,11 @@ if (!existingDev) {
     JSON.stringify({ proxy: true, games: true, bookmarks: true, settings: true, admin: true })
   );
   console.log("[DB] Dev account seeded");
+}
+
+// --- Session token hashing ---
+function hashToken(token) {
+  return crypto.createHash("sha256").update(token).digest("hex");
 }
 
 // --- Session cleanup (runs every 10 minutes) ---
@@ -132,7 +157,7 @@ export function createSession(userId) {
   const now = Math.floor(Date.now() / 1000);
   const expiresAt = now + SESSION_TTL;
   db.prepare("INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)").run(
-    token, userId, now, expiresAt
+    hashToken(token), userId, now, expiresAt
   );
   return { token, expiresAt };
 }
@@ -142,7 +167,7 @@ export function validateSession(token) {
   const now = Math.floor(Date.now() / 1000);
   const session = db.prepare(
     "SELECT s.user_id, u.id, u.email, u.display_name, u.role, u.features FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.token = ? AND s.expires_at > ?"
-  ).get(token, now);
+  ).get(hashToken(token), now);
   if (!session) return null;
   return {
     id: session.id,
@@ -154,7 +179,7 @@ export function validateSession(token) {
 }
 
 export function deleteSession(token) {
-  db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
+  db.prepare("DELETE FROM sessions WHERE token = ?").run(hashToken(token));
 }
 
 export function deleteUserSessions(userId) {
@@ -202,4 +227,50 @@ export function getActiveSessionCount() {
 export function getRecentSignups(days = 7) {
   const since = Math.floor(Date.now() / 1000) - days * 86400;
   return db.prepare("SELECT COUNT(*) as count FROM users WHERE created_at > ?").get(since).count;
+}
+
+// --- Bookmark sync operations ---
+export function getUserBookmarks(userId) {
+  return db.prepare(
+    "SELECT url, title, created_at FROM bookmarks WHERE user_id = ? ORDER BY created_at DESC"
+  ).all(userId);
+}
+
+export function addUserBookmark(userId, url, title) {
+  try {
+    db.prepare(
+      "INSERT INTO bookmarks (user_id, url, title) VALUES (?, ?, ?)"
+    ).run(userId, url, title || "");
+    return { ok: true };
+  } catch (err) {
+    if (err.message.includes("UNIQUE constraint")) return { ok: true };
+    throw err;
+  }
+}
+
+export function removeUserBookmark(userId, url) {
+  db.prepare("DELETE FROM bookmarks WHERE user_id = ? AND url = ?").run(userId, url);
+}
+
+// --- History sync operations ---
+export function getUserHistory(userId, limit = 200) {
+  return db.prepare(
+    "SELECT url, title, visited_at FROM history WHERE user_id = ? ORDER BY visited_at DESC LIMIT ?"
+  ).all(userId, limit);
+}
+
+export function addUserHistory(userId, url, title) {
+  db.prepare(
+    "INSERT INTO history (user_id, url, title) VALUES (?, ?, ?)"
+  ).run(userId, url, title || "");
+}
+
+export function clearUserHistory(userId) {
+  db.prepare("DELETE FROM history WHERE user_id = ?").run(userId);
+}
+
+export function updateUserHistoryTitle(userId, url, title) {
+  db.prepare(
+    "UPDATE history SET title = ? WHERE user_id = ? AND url = ? AND (title = '' OR title = url)"
+  ).run(title, userId, url);
 }

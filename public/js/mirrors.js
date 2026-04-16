@@ -12,8 +12,32 @@ export async function initMirrors(mirrorList) {
   mirrors = mirrorList || [];
   if (mirrors.length === 0) return;
 
+  // On startup, race all mirrors to find the fastest and cache it
+  raceMirrors();
+
   // Periodic health check of current domain
   setInterval(checkCurrentDomain, CHECK_INTERVAL);
+}
+
+async function raceMirrors() {
+  const candidates = mirrors.filter((m) => !m.includes(location.hostname));
+  if (candidates.length === 0) return;
+
+  try {
+    const fastest = await Promise.any(
+      candidates.map(async (url) => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), PING_TIMEOUT);
+        const resp = await fetch(`${url}/health`, { signal: controller.signal });
+        clearTimeout(timeout);
+        if (!resp.ok) throw new Error("unhealthy");
+        return url;
+      })
+    );
+    localStorage.setItem("blossom-best-mirror", fastest);
+  } catch {
+    localStorage.removeItem("blossom-best-mirror");
+  }
 }
 
 async function checkCurrentDomain() {

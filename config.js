@@ -1,6 +1,10 @@
 // Blossom configuration
 // Change these values per deployment to avoid path-pattern blocking
 
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+const pkg = require("./package.json");
+
 const config = {
   // Port to listen on (overridden by PORT env var)
   port: parseInt(process.env.PORT || "8080", 10),
@@ -51,7 +55,7 @@ const config = {
       /^fe80:/,
       /^\[::1\]$/,
     ],
-    dns_servers: ["1.1.1.3", "1.0.0.3"],
+    dns_servers: (process.env.DNS_SERVERS || "1.1.1.3,1.0.0.3").split(",").map(s => s.trim()),
   },
 
   // Tab cloaking defaults
@@ -63,8 +67,8 @@ const config = {
   // Default panic URL
   defaultPanicUrl: "https://classroom.google.com",
 
-  // Build version — increment on deploys so SW knows to update
-  version: "1.3.0",
+  // Build version — read from package.json so there's one source of truth
+  version: pkg.version,
 };
 
 export default config;

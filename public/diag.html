@@ -81,10 +81,19 @@
         warn("  The SW may need clients.claim() or the page may need a reload");
       }
 
-      // Try to register
+      // Try to register (use config prefixes like the real app does)
       info("\n  Attempting SW registration...");
       try {
-        const reg = await navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" });
+        let swUrl = "/sw.js";
+        // Fetch config to get real prefixes, same as register-sw.js
+        try {
+          const cfgResp = await fetch("/blossom-config.json");
+          const cfg = await cfgResp.json();
+          const p = encodeURIComponent(cfg.proxyPrefix || "/assets/wasm/");
+          const s = encodeURIComponent(cfg.scramjetPrefix || "/~/");
+          swUrl = `/sw.js?p=${p}&s=${s}`;
+        } catch {}
+        const reg = await navigator.serviceWorker.register(swUrl, { updateViaCache: "none" });
         ok("SW registered: scope=" + reg.scope);
         if (reg.active) ok("  SW is active");
         if (reg.waiting) warn("  SW is waiting (new version pending)");

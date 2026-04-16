@@ -5,9 +5,9 @@ import { registerSW } from "./register-sw.js";
 import { resolveInput } from "./search.js";
 import { applyCloak } from "./cloak.js";
 import { initPanic } from "./panic.js";
-import { loadGames, filterGames, getAllTags, toggleFavorite, isFavorite, recordGamePlayed } from "./games.js";
-import { getBookmarks, addBookmark, removeBookmark, isBookmarked } from "./bookmarks.js";
-import { getHistory, addToHistory, clearHistory } from "./history.js";
+import { loadGames, filterGames, getAllTags, toggleFavorite, isFavorite, recordGamePlayed, getRecentGames, getFavorites, getGameById } from "./games.js";
+import { getBookmarks, addBookmark, removeBookmark, isBookmarked, syncBookmarksFromServer } from "./bookmarks.js";
+import { getHistory, addToHistory, clearHistory, updateHistoryTitle, syncHistoryFromServer } from "./history.js";
 import { initMirrors } from "./mirrors.js";
 import { initSettings } from "./settings.js";
 
@@ -66,6 +66,21 @@ async function init() {
 
   // Store user info
   currentUser = config.user || null;
+
+  // Sync bookmarks and history from server (fire-and-forget)
+  if (currentUser) {
+    syncBookmarksFromServer().then(() => renderRecentVisits()).catch(() => {});
+    syncHistoryFromServer().then(() => renderRecentVisits()).catch(() => {});
+  }
+
+  // Feature flag enforcement — hide UI for disabled features
+  if (currentUser?.features) {
+    const f = currentUser.features;
+    const hide = (id) => { const el = document.getElementById(id); if (el) el.hidden = true; };
+    if (f.games === false) hide("btn-games");
+    if (f.bookmarks === false) hide("btn-bookmarks");
+    if (f.settings === false) hide("btn-settings");
+  }
 
   // Version display
   const versionEl = document.getElementById("blossom-version");
@@ -244,12 +259,36 @@ async function navigateTo(url) {
   addToHistory(resolved, resolved);
   renderRecentVisits();
 
+  // Hide games view if visible
+  const gamesView = document.getElementById("games-view");
+  if (gamesView) gamesView.hidden = true;
+
+  // Feature check
+  if (currentUser && currentUser.features?.proxy === false) {
+    loadingOverlay.hidden = true;
+    proxyToolbar.hidden = true;
+    searchError.textContent = "Proxy access is not enabled for your account.";
+    searchError.hidden = false;
+    return;
+  }
+
+  // Reuse existing proxy frame if already active
+  if (proxyActive && scramjetFrame) {
+    scramjetFrame.frame.addEventListener("load", () => {
+      loadingOverlay.hidden = true;
+    }, { once: true });
+    setTimeout(() => { loadingOverlay.hidden = true; }, 10000);
+    scramjetFrame.go(resolved);
+    updateBookmarkButton(resolved);
+    return;
+  }
+
   // Show proxy frame
   const homeView = document.getElementById("home-view");
   homeView.style.display = "none";
   proxyActive = true;
 
-  // Create a new ScramjetFrame each navigation
+  // Create a new ScramjetFrame
   const frame = scramjet.createFrame();
   frame.frame.id = "proxy-frame";
   frame.frame.className = "proxy-frame with-toolbar";
@@ -262,23 +301,35 @@ async function navigateTo(url) {
 
   // urlchange fires after URL has actually changed (including pushState)
   frame.addEventListener("urlchange", (e) => {
-    console.log("[Blossom] URL changed:", e.url);
     currentProxyUrl = e.url;
     updateProxyUrlBar(e.url);
     updateBookmarkButton(e.url);
-    // Update tab title to show current site
+    // Try to get real page title from proxied document
     try {
-      const hostname = new URL(e.url).hostname.replace("www.", "");
-      document.title = hostname + " — Blossom";
-    } catch {}
+      const title = frame.frame.contentDocument?.title;
+      if (title) {
+        document.title = title + " \u2014 Blossom";
+        updateHistoryTitle(e.url, title);
+      } else {
+        const hostname = new URL(e.url).hostname.replace("www.", "");
+        document.title = hostname + " \u2014 Blossom";
+      }
+    } catch {
+      try {
+        const hostname = new URL(e.url).hostname.replace("www.", "");
+        document.title = hostname + " \u2014 Blossom";
+      } catch {}
+    }
   });
 
-  // Block popups: intercept window.open inside the proxied page
+  // Block popups: intercept window.open and target=_blank links
   frame.frame.addEventListener("load", () => {
     try {
       const fw = frame.frame.contentWindow;
       if (fw) {
-        fw.open = () => null; // Block window.open popups
+        fw.open = () => null;
+        const doc = frame.frame.contentDocument;
+        if (doc) doc.querySelectorAll('a[target="_blank"]').forEach(a => a.removeAttribute("target"));
       }
     } catch { /* cross-origin, ignore */ }
   });
@@ -311,12 +362,14 @@ async function navigateTo(url) {
 function goHome() {
   const frame = document.getElementById("proxy-frame");
   const homeView = document.getElementById("home-view");
+  const gamesView = document.getElementById("games-view");
   const proxyToolbar = document.getElementById("proxy-toolbar");
   const loadingOverlay = document.getElementById("loading-overlay");
   const expandBtn = document.getElementById("proxy-expand");
 
   if (frame) frame.remove();
   homeView.style.display = "";
+  if (gamesView) gamesView.hidden = true;
   proxyToolbar.hidden = true;
   loadingOverlay.hidden = true;
   if (expandBtn) expandBtn.hidden = true;
@@ -350,7 +403,6 @@ function wireQuickLinks() {
 function wirePanels() {
   // Open panel buttons
   const panelMap = {
-    "btn-games": "games-panel",
     "btn-bookmarks": "bookmarks-panel",
     "btn-history": "history-panel",
     "btn-settings": "settings-panel",
@@ -710,6 +762,7 @@ function wireLogoClick() {
     logo.style.cursor = "pointer";
     logo.addEventListener("click", () => {
       if (proxyActive) goHome();
+      else hideGamesView();
     });
   }
 }

@@ -463,55 +463,138 @@ body {
   border-color: var(--accent);
 }
 
-.games-grid {
+.games-grid,
+.games-full-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  gap: 10px;
-  padding: 16px;
-  overflow-y: auto;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+/* Games full-screen view */
+#games-view {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px 60px;
+  animation: fadeIn 0.3s ease;
+}
+
+.games-view-header {
+  margin-bottom: 24px;
+}
+
+.games-view-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.games-view-title {
+  font-size: 24px;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--accent), #c084fc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0;
+}
+
+.games-view-search {
   flex: 1;
+  max-width: 300px;
+  margin-left: auto;
+}
+
+.games-view-search input {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid #2a2a30;
+  background: var(--bg-input);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  transition: border-color var(--transition);
+}
+.games-view-search input:focus {
+  border-color: var(--accent);
+}
+
+.games-section {
+  margin-bottom: 28px;
+}
+
+.games-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 12px;
+  color: var(--text);
 }
 
 .game-card {
   background: var(--bg-card);
   border: 1px solid #2a2a30;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   overflow: hidden;
   cursor: pointer;
-  transition: border-color var(--transition), transform var(--transition);
+  transition: border-color var(--transition), transform var(--transition), box-shadow var(--transition);
+  position: relative;
 }
 .game-card:hover {
   border-color: var(--accent);
-  transform: translateY(-2px);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(232, 160, 191, 0.12);
 }
 
-.game-thumb {
+.game-card-thumb {
   width: 100%;
-  aspect-ratio: 4/3;
-  object-fit: cover;
+  aspect-ratio: 16/10;
   background: var(--bg-input);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  overflow: hidden;
+}
+.game-card-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.game-name {
-  padding: 8px;
-  font-size: 12px;
-  text-align: center;
+.game-card-info {
+  padding: 10px 12px;
+}
+
+.game-card-name {
+  font-size: 13px;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.game-card-tags {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
 .game-fav {
   position: absolute;
-  top: 4px; right: 4px;
-  background: rgba(0,0,0,0.6);
+  top: 6px;
+  right: 6px;
+  background: rgba(0,0,0,0.55);
   border: none;
   color: var(--text-dim);
-  font-size: 14px;
-  width: 28px; height: 28px;
+  font-size: 15px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: color var(--transition), background var(--transition);
 }
+.game-fav:hover { background: rgba(0,0,0,0.8); }
 .game-fav.active { color: #ffd700; }
 
 /* ===== List Views (Bookmarks, History) ===== */
@@ -754,11 +837,13 @@ hr {
 @media (max-width: 480px) {
   .hero-title { font-size: 32px; }
   .quick-grid { grid-template-columns: repeat(3, 1fr); }
-  .games-grid { grid-template-columns: repeat(2, 1fr); }
+  .games-grid, .games-full-grid { grid-template-columns: repeat(2, 1fr); }
   .side-panel { max-width: 100%; }
   #proxy-toolbar { gap: 2px; padding: 6px 6px; }
   .proxy-nav-btn { width: 28px; height: 28px; }
   .proxy-url-bar { padding: 4px 10px; }
+  .games-view-top { flex-wrap: wrap; }
+  .games-view-search { max-width: 100%; flex-basis: 100%; }
 }
 
 @media (min-width: 481px) and (max-width: 768px) {
@@ -768,11 +853,13 @@ hr {
 /* Hide scrollbar on panels */
 .list-view::-webkit-scrollbar,
 .games-grid::-webkit-scrollbar,
+.games-full-grid::-webkit-scrollbar,
 .settings-body::-webkit-scrollbar {
   width: 6px;
 }
 .list-view::-webkit-scrollbar-thumb,
 .games-grid::-webkit-scrollbar-thumb,
+.games-full-grid::-webkit-scrollbar-thumb,
 .settings-body::-webkit-scrollbar-thumb {
   background: #333;
   border-radius: 3px;
