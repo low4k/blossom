@@ -1,5 +1,4 @@
-// Games section — searchable, categorized, with favorites and recents
-// All state stored in localStorage
+
 
 let gamesManifest = [];
 let favorites = JSON.parse(localStorage.getItem("blossom-game-favs") || "[]");
@@ -58,10 +57,10 @@ export function isFavorite(id) {
 }
 
 export function recordGamePlayed(game) {
-  // Remove if already in recents, add to front
+
   recentGames = recentGames.filter((r) => r.id !== game.id);
   recentGames.unshift({ id: game.id, name: game.name, time: Date.now() });
-  // Keep max 20
+
   if (recentGames.length > 20) recentGames.length = 20;
   localStorage.setItem("blossom-game-recents", JSON.stringify(recentGames));
 }

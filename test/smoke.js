@@ -1,4 +1,3 @@
-// Blossom smoke test — validates config and basic module loading
 import assert from "node:assert";
 import config from "../config.js";
 

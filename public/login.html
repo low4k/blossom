@@ -146,7 +146,7 @@
     }
 
     [hidden] { display: none !important; }
-  </style>
+</style>
 </head>
 <body>
   <div class="auth-card">
@@ -160,7 +160,6 @@
       <button class="tab-btn" id="tab-register">Create Account</button>
     </div>
 
-    <!-- Login form -->
     <form id="login-form">
       <div class="form-group">
         <label>Email</label>
@@ -174,7 +173,6 @@
       <div id="login-error" class="auth-error"></div>
     </form>
 
-    <!-- Register form -->
     <form id="register-form" hidden>
       <div class="form-group">
         <label>Display Name</label>
@@ -194,7 +192,7 @@
   </div>
 
   <script>
-    // If already logged in, redirect
+
     fetch("/auth/me").then(r => { if (r.ok) window.location.replace("/"); });
 
     const tabLogin = document.getElementById("tab-login");
@@ -255,6 +253,6 @@
       } catch { errEl.textContent = "Network error"; }
       finally { btn.disabled = false; }
     });
-  </script>
+</script>
 </body>
 </html>

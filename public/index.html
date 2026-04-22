@@ -14,9 +14,9 @@
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <!-- Main app shell -->
+
   <div id="app">
-    <!-- Top bar -->
+
     <header id="topbar">
       <div class="topbar-left">
         <span class="logo"><svg class="logo-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="var(--accent)" fill-opacity=".15" stroke="var(--accent)"/><circle cx="12" cy="12" r="3" fill="var(--accent)" stroke="none"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="var(--accent)" stroke-opacity=".5"/></svg> Blossom</span>
@@ -32,7 +32,6 @@
       </div>
     </header>
 
-    <!-- Home view -->
     <main id="home-view">
       <div class="hero">
         <h1 class="hero-title">Blossom</h1>
@@ -52,7 +51,6 @@
         <div id="search-error" class="error-msg" hidden></div>
       </div>
 
-      <!-- Quick links -->
       <section id="quick-links">
         <h2>Quick Links</h2>
         <div class="quick-grid">
@@ -83,14 +81,12 @@
         </div>
       </section>
 
-      <!-- Recently visited (populated by JS) -->
       <section id="recent-section" hidden>
         <h2>Recently Visited</h2>
         <div id="recent-list" class="quick-grid"></div>
       </section>
     </main>
 
-    <!-- Games view (full-screen, replaces home when visible) -->
     <main id="games-view" hidden>
       <div class="games-view-header">
         <div class="games-view-top">
@@ -121,7 +117,6 @@
       </section>
     </main>
 
-    <!-- Proxy navigation toolbar (visible when proxy is active) -->
     <div id="proxy-toolbar" hidden>
       <button id="proxy-back" class="proxy-nav-btn" title="Back">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -147,20 +142,15 @@
       </button>
     </div>
 
-    <!-- Loading overlay (shown during proxy navigation) -->
     <div id="loading-overlay" hidden>
       <div class="loading-spinner"></div>
       <p class="loading-text">Loading...</p>
     </div>
 
-    <!-- Toolbar expand button (shown when toolbar is hidden) -->
     <button id="proxy-expand" class="proxy-expand-btn" hidden title="Show toolbar">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
     </button>
 
-    <!-- Proxy frame is created dynamically by ScramjetController.createFrame() -->
-
-    <!-- Bookmarks panel -->
     <div id="bookmarks-panel" class="side-panel" hidden>
       <div class="panel-header">
         <h2>Bookmarks</h2>
@@ -170,7 +160,6 @@
       <p id="bookmarks-empty" class="empty-state">No bookmarks yet. Browse a site and tap 🔖 to save it.</p>
     </div>
 
-    <!-- History panel -->
     <div id="history-panel" class="side-panel" hidden>
       <div class="panel-header">
         <h2>History</h2>
@@ -181,7 +170,6 @@
       <p id="history-empty" class="empty-state">No browsing history yet.</p>
     </div>
 
-    <!-- Settings panel -->
     <div id="settings-panel" class="side-panel" hidden>
       <div class="panel-header">
         <h2>Settings</h2>
@@ -246,13 +234,11 @@
       </div>
     </div>
 
-    <!-- CAPTCHA toast -->
     <div id="captcha-toast" class="toast" hidden>
       Solving a CAPTCHA? Complete it slowly — the page can sometimes loop if you go too fast.
       <button class="toast-close" data-dismiss="captcha-toast">✕</button>
     </div>
 
-    <!-- Error overlay -->
     <div id="error-overlay" class="overlay" hidden>
       <div class="error-card">
         <h2>Something went wrong</h2>
@@ -265,7 +251,6 @@
     </div>
   </div>
 
-  <!-- Scripts: paths fetched from server config to avoid hardcoded detectable paths -->
   <script>
     (async () => {
       let cfg;
@@ -286,16 +271,14 @@
         });
       }
 
-      // Load scramjet engine + baremux (global scripts, must load before modules)
       await loadScript(cfg.proxyPrefix + "scramjet.all.js");
       await loadScript(cfg.baremuxPrefix + "index.js");
 
-      // Load app entry point as module (pulls in all other modules via imports)
       const m = document.createElement("script");
       m.type = "module";
       m.src = "/js/app.js";
       document.body.appendChild(m);
     })();
-  </script>
+</script>
 </body>
 </html>

@@ -1,5 +1,4 @@
-// Blossom — main app controller
-// Wires all modules together and handles UI interactions
+
 
 import { registerSW } from "./register-sw.js";
 import { resolveInput } from "./search.js";
@@ -11,24 +10,21 @@ import { getHistory, addToHistory, clearHistory, updateHistoryTitle, syncHistory
 import { initMirrors } from "./mirrors.js";
 import { initSettings } from "./settings.js";
 
-// --- State ---
 let config = {};
 let scramjet = null;
 let scramjetFrame = null;
 let connection = null;
 let proxyActive = false;
 let currentUser = null;
-let currentProxyUrl = ""; // Track full URL for bookmarks
+let currentProxyUrl = "";
 
-// --- Boot ---
 async function init() {
   console.log("[Blossom] Initializing...");
 
-  // Check cross-origin isolation (required for SharedArrayBuffer / BareMux)
   if (!crossOriginIsolated) {
     console.warn("[Blossom] Page is NOT cross-origin isolated. SharedArrayBuffer unavailable.");
     console.warn("[Blossom] This may happen on Safari, Firefox forks, or older browsers.");
-    // Show a visible warning so users know why things break
+
     const errEl = document.getElementById("search-error");
     if (errEl) {
       errEl.textContent = "Your browser doesn't support required features. Try Chrome/Edge, or check browser settings.";
@@ -36,7 +32,6 @@ async function init() {
     }
   }
 
-  // Load server config
   try {
     const resp = await fetch("/blossom-config.json");
     config = await resp.json();
@@ -52,28 +47,21 @@ async function init() {
     };
   }
 
-  // Apply tab cloak immediately
   applyCloak();
 
-  // Init panic key
   initPanic();
 
-  // Init settings panel
   initSettings();
 
-  // Init domain survival
   initMirrors(config.mirrors);
 
-  // Store user info
   currentUser = config.user || null;
 
-  // Sync bookmarks and history from server (fire-and-forget)
   if (currentUser) {
     syncBookmarksFromServer().then(() => renderRecentVisits()).catch(() => {});
     syncHistoryFromServer().then(() => renderRecentVisits()).catch(() => {});
   }
 
-  // Feature flag enforcement — hide UI for disabled features
   if (currentUser?.features) {
     const f = currentUser.features;
     const hide = (id) => { const el = document.getElementById(id); if (el) el.hidden = true; };
@@ -82,23 +70,19 @@ async function init() {
     if (f.settings === false) hide("btn-settings");
   }
 
-  // Version display
   const versionEl = document.getElementById("blossom-version");
   if (versionEl) versionEl.textContent = `v${config.version}`;
 
-  // Show admin link for dev users
   if (currentUser?.role === "dev") {
     const adminBtn = document.getElementById("btn-admin");
     if (adminBtn) adminBtn.hidden = false;
   }
 
-  // Show user display name
   const userNameEl = document.getElementById("user-display-name");
   if (userNameEl && currentUser) {
     userNameEl.textContent = currentUser.displayName;
   }
 
-  // Register SW first — scramjet needs it running
   try {
     await registerSW(config.version, config.proxyPrefix, config.scramjetPrefix);
     console.log("[Blossom] Service worker registered");
@@ -106,14 +90,11 @@ async function init() {
     console.error("[Blossom] SW registration failed:", err);
   }
 
-  // Init Scramjet (must complete before user can navigate)
   await initScramjet();
 
-  // Load games
   await loadGames();
   renderGamesTags();
 
-  // Wire up UI
   wireSearch();
   wireQuickLinks();
   wirePanels();
@@ -123,16 +104,13 @@ async function init() {
   wireLogoClick();
   wireAccount();
 
-  // Check server health for status widget
   checkHealth();
 
-  // Render recent visits on home
   renderRecentVisits();
 
   console.log("[Blossom] Ready");
 }
 
-// --- Scramjet Setup ---
 async function initScramjet() {
   if (typeof $scramjetLoadController !== "function") {
     console.error("[Blossom] $scramjetLoadController not found. Check that scramjet.all.js is loaded.");
@@ -154,13 +132,12 @@ async function initScramjet() {
       },
     });
 
-    // Init scramjet — if IDB has stale schema from old deployment, nuke and retry
     try {
       await scramjet.init();
       console.log("[Blossom] ScramjetController initialized");
     } catch (err) {
       console.warn("[Blossom] Init failed, clearing stale IDB:", err.message);
-      // Delete known Scramjet DB by name (indexedDB.databases() is not supported in Firefox)
+
       for (const name of ["$scramjet"]) {
         await new Promise((resolve) => {
           const req = indexedDB.deleteDatabase(name);
@@ -174,8 +151,6 @@ async function initScramjet() {
       console.log("[Blossom] ScramjetController initialized (after IDB cleanup)");
     }
 
-    // Set up BareMux connection and transport IMMEDIATELY
-    // Transport must be configured before any proxy request is made
     if (typeof BareMux !== "undefined") {
       const bmPrefix = config.baremuxPrefix || "/assets/worker/";
       const epPrefix = config.epoxyPrefix || "/assets/net/";
@@ -193,7 +168,6 @@ async function initScramjet() {
   }
 }
 
-// --- Ensure transport is ready (safety net — transport should already be set from init) ---
 async function ensureTransport() {
   if (!connection) {
     if (typeof BareMux !== "undefined") {
@@ -216,7 +190,6 @@ async function ensureTransport() {
   }
 }
 
-// --- Navigation ---
 async function navigateTo(url) {
   const searchError = document.getElementById("search-error");
   searchError.hidden = true;
@@ -233,16 +206,13 @@ async function navigateTo(url) {
 
   console.log("[Blossom] Navigating to:", resolved);
 
-  // Show loading overlay
   const loadingOverlay = document.getElementById("loading-overlay");
   const proxyToolbar = document.getElementById("proxy-toolbar");
   loadingOverlay.hidden = false;
   proxyToolbar.hidden = false;
 
-  // Update URL bar
   updateProxyUrlBar(resolved);
 
-  // Ensure SW is registered and transport is ready
   try {
     await registerSW(config.version, config.proxyPrefix, config.scramjetPrefix);
     await ensureTransport();
@@ -255,15 +225,12 @@ async function navigateTo(url) {
     return;
   }
 
-  // Record in history
   addToHistory(resolved, resolved);
   renderRecentVisits();
 
-  // Hide games view if visible
   const gamesView = document.getElementById("games-view");
   if (gamesView) gamesView.hidden = true;
 
-  // Feature check
   if (currentUser && currentUser.features?.proxy === false) {
     loadingOverlay.hidden = true;
     proxyToolbar.hidden = true;
@@ -272,7 +239,6 @@ async function navigateTo(url) {
     return;
   }
 
-  // Reuse existing proxy frame if already active
   if (proxyActive && scramjetFrame) {
     scramjetFrame.frame.addEventListener("load", () => {
       loadingOverlay.hidden = true;
@@ -283,28 +249,25 @@ async function navigateTo(url) {
     return;
   }
 
-  // Show proxy frame
   const homeView = document.getElementById("home-view");
   homeView.style.display = "none";
   proxyActive = true;
 
-  // Create a new ScramjetFrame
   const frame = scramjet.createFrame();
   frame.frame.id = "proxy-frame";
   frame.frame.className = "proxy-frame with-toolbar";
-  // navigate fires immediately when a link is clicked (before load)
+
   frame.addEventListener("navigate", (e) => {
     console.log("[Blossom] Navigating:", e.url);
     currentProxyUrl = e.url;
     updateProxyUrlBar(e.url);
   });
 
-  // urlchange fires after URL has actually changed (including pushState)
   frame.addEventListener("urlchange", (e) => {
     currentProxyUrl = e.url;
     updateProxyUrlBar(e.url);
     updateBookmarkButton(e.url);
-    // Try to get real page title from proxied document
+
     try {
       const title = frame.frame.contentDocument?.title;
       if (title) {
@@ -322,7 +285,6 @@ async function navigateTo(url) {
     }
   });
 
-  // Block popups: intercept window.open and target=_blank links
   frame.frame.addEventListener("load", () => {
     try {
       const fw = frame.frame.contentWindow;
@@ -331,17 +293,15 @@ async function navigateTo(url) {
         const doc = frame.frame.contentDocument;
         if (doc) doc.querySelectorAll('a[target="_blank"]').forEach(a => a.removeAttribute("target"));
       }
-    } catch { /* cross-origin, ignore */ }
+    } catch {  }
   });
 
-  // Hide loading when frame loads
   frame.frame.addEventListener("load", () => {
     loadingOverlay.hidden = true;
   }, { once: true });
-  // Fallback: hide loading after 10s
+
   setTimeout(() => { loadingOverlay.hidden = true; }, 10000);
 
-  // Remove old frame if any
   const oldFrame = document.getElementById("proxy-frame");
   if (oldFrame) oldFrame.remove();
 
@@ -349,10 +309,8 @@ async function navigateTo(url) {
   scramjetFrame = frame;
   frame.go(resolved);
 
-  // Update bookmark button state
   updateBookmarkButton(resolved);
 
-  // Show CAPTCHA toast if navigating to a site that commonly triggers them
   const captchaSites = ["google.com", "youtube.com", "discord.com", "roblox.com"];
   if (captchaSites.some((s) => resolved.includes(s))) {
     setTimeout(() => showCaptchaToast(), 1500);
@@ -377,11 +335,9 @@ function goHome() {
   scramjetFrame = null;
   currentProxyUrl = "";
 
-  // Restore tab title (re-apply cloak)
   applyCloak();
 }
 
-// --- UI Wiring ---
 function wireSearch() {
   const form = document.getElementById("search-form");
   const input = document.getElementById("search-input");
@@ -401,7 +357,7 @@ function wireQuickLinks() {
 }
 
 function wirePanels() {
-  // Open panel buttons
+
   const panelMap = {
     "btn-bookmarks": "bookmarks-panel",
     "btn-history": "history-panel",
@@ -413,16 +369,14 @@ function wirePanels() {
       closeAllPanels();
       const panel = document.getElementById(panelId);
       panel.hidden = false;
-      // Trigger animation
+
       requestAnimationFrame(() => panel.classList.add("open"));
 
-      // Refresh panel content
       if (panelId === "bookmarks-panel") renderBookmarks();
       if (panelId === "history-panel") renderHistory();
     });
   }
 
-  // Close buttons
   document.querySelectorAll(".panel-close").forEach((btn) => {
     btn.addEventListener("click", () => {
       const panelId = btn.dataset.close;
@@ -430,11 +384,10 @@ function wirePanels() {
     });
   });
 
-  // Close panel by clicking outside it
   document.addEventListener("click", (e) => {
     const openPanel = document.querySelector(".side-panel.open");
     if (!openPanel) return;
-    // If click is inside the panel or on a topbar button, ignore
+
     if (openPanel.contains(e.target) || e.target.closest(".topbar-btn")) return;
     closePanel(openPanel.id);
   });
@@ -453,7 +406,6 @@ function closePanel(panelId) {
   setTimeout(() => { panel.hidden = true; }, 250);
 }
 
-// --- Games Rendering ---
 function renderGamesTags() {
   const container = document.getElementById("games-tags");
   const tags = getAllTags();
@@ -480,7 +432,6 @@ function wireGames() {
     renderGamesGrid(searchInput.value, tag);
   });
 
-  // Initial render
   renderGamesGrid("", "all");
 }
 
@@ -526,7 +477,7 @@ function renderGamesGrid(query, tag) {
     card.addEventListener("click", () => {
       recordGamePlayed(game);
       if (!game.url) return;
-      // Local HTML games open directly in a new context
+
       if (game.url.startsWith("/")) {
         window.open(game.url, "_blank");
       } else {
@@ -538,7 +489,6 @@ function renderGamesGrid(query, tag) {
   }
 }
 
-// --- Bookmarks Rendering ---
 function renderBookmarks() {
   const list = document.getElementById("bookmarks-list");
   const empty = document.getElementById("bookmarks-empty");
@@ -556,7 +506,6 @@ function renderBookmarks() {
   }
 }
 
-// --- History Rendering ---
 function wireHistoryPanel() {
   document.getElementById("clear-history").addEventListener("click", () => {
     clearHistory();
@@ -612,7 +561,6 @@ function renderRecentVisits() {
   }
 }
 
-// --- Shared UI Helpers ---
 function createListItem(title, url, time, onClick, onRemove) {
   const item = document.createElement("div");
   item.className = "list-item";
@@ -665,7 +613,6 @@ function formatTime(ts) {
   return d.toLocaleDateString();
 }
 
-// --- Proxy Toolbar ---
 function wireProxyToolbar() {
   document.getElementById("proxy-back").addEventListener("click", () => {
     if (!scramjetFrame) return;
@@ -681,7 +628,6 @@ function wireProxyToolbar() {
   });
   document.getElementById("proxy-home").addEventListener("click", goHome);
 
-  // Bookmark button — use full tracked URL
   document.getElementById("proxy-bookmark").addEventListener("click", () => {
     if (!currentProxyUrl) return;
     if (isBookmarked(currentProxyUrl)) {
@@ -694,7 +640,6 @@ function wireProxyToolbar() {
     updateBookmarkButton(currentProxyUrl);
   });
 
-  // Editable URL bar — Enter navigates to typed URL
   const urlInput = document.getElementById("proxy-url-input");
   urlInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
@@ -704,10 +649,9 @@ function wireProxyToolbar() {
       navigateTo(val);
     }
   });
-  // Select all on focus for easy replacing
+
   urlInput.addEventListener("focus", () => urlInput.select());
 
-  // Collapse toolbar
   document.getElementById("proxy-collapse").addEventListener("click", () => {
     const toolbar = document.getElementById("proxy-toolbar");
     const expandBtn = document.getElementById("proxy-expand");
@@ -719,7 +663,6 @@ function wireProxyToolbar() {
     }
   });
 
-  // Expand toolbar
   document.getElementById("proxy-expand").addEventListener("click", () => {
     const toolbar = document.getElementById("proxy-toolbar");
     const expandBtn = document.getElementById("proxy-expand");
@@ -734,7 +677,7 @@ function wireProxyToolbar() {
 
 function updateProxyUrlBar(url) {
   const urlInput = document.getElementById("proxy-url-input");
-  // Show hostname+path in the bar, store full URL in currentProxyUrl
+
   try {
     const parsed = typeof url === "string" ? new URL(url) : url;
     const path = parsed.pathname === "/" ? "" : parsed.pathname;
@@ -783,7 +726,6 @@ function wireAccount() {
     });
   }
 
-  // Settings panel account section
   const settingsEmail = document.getElementById("settings-user-email");
   if (settingsEmail && currentUser) {
     settingsEmail.textContent = currentUser.displayName;
@@ -797,7 +739,6 @@ function wireAccount() {
   }
 }
 
-// --- Health Check ---
 async function checkHealth() {
   const dot = document.getElementById("status-dot");
   const text = document.getElementById("status-text");
@@ -818,12 +759,10 @@ async function checkHealth() {
   }
 }
 
-// --- CAPTCHA Toast ---
 function showCaptchaToast() {
   const toast = document.getElementById("captcha-toast");
   toast.hidden = false;
 
-  // Auto-dismiss after 8 seconds
   const timeout = setTimeout(() => { toast.hidden = true; }, 8000);
 
   const closeBtn = toast.querySelector(".toast-close");
@@ -833,7 +772,6 @@ function showCaptchaToast() {
   }, { once: true });
 }
 
-// --- General Toast ---
 function showToast(message) {
   const existing = document.querySelector(".toast.dynamic");
   if (existing) existing.remove();
@@ -854,7 +792,6 @@ function showToast(message) {
   setTimeout(() => toast.remove(), 8000);
 }
 
-// --- Error Overlay ---
 window.showProxyError = function (detail) {
   const overlay = document.getElementById("error-overlay");
   const detailEl = document.getElementById("error-detail");
@@ -873,5 +810,4 @@ window.showProxyError = function (detail) {
   };
 };
 
-// --- Init ---
 init().catch(console.error);

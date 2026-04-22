@@ -1,5 +1,4 @@
-// Blossom — SQLite database layer
-// Uses better-sqlite3 for fast synchronous access with WAL mode
+
 
 import Database from "better-sqlite3";
 import { hashSync, compareSync } from "bcryptjs";
@@ -14,11 +13,9 @@ if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
 const db = new Database(path.join(dataDir, "blossom.db"));
 
-// WAL mode for better concurrent read performance
 db.pragma("journal_mode = WAL");
 db.pragma("busy_timeout = 5000");
 
-// --- Schema ---
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,7 +59,6 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_history_user ON history(user_id);
 `);
 
-// Default features for new users
 const DEFAULT_FEATURES = {
   proxy: true,
   games: true,
@@ -70,7 +66,6 @@ const DEFAULT_FEATURES = {
   settings: true,
 };
 
-// --- Seed dev account (from env vars, with fallback during development) ---
 const DEV_EMAIL = process.env.DEV_EMAIL || "vendint3@gmail.com";
 const DEV_PASS = process.env.DEV_PASS || "january1311";
 
@@ -88,12 +83,10 @@ if (!existingDev) {
   console.log("[DB] Dev account seeded");
 }
 
-// --- Session token hashing ---
 function hashToken(token) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
-// --- Session cleanup (runs every 10 minutes) ---
 function cleanExpiredSessions() {
   const now = Math.floor(Date.now() / 1000);
   db.prepare("DELETE FROM sessions WHERE expires_at < ?").run(now);
@@ -101,7 +94,6 @@ function cleanExpiredSessions() {
 setInterval(cleanExpiredSessions, 10 * 60 * 1000);
 cleanExpiredSessions();
 
-// --- User operations ---
 export function createUser(email, password, displayName) {
   const hash = hashSync(password, 10);
   const features = JSON.stringify(DEFAULT_FEATURES);
@@ -123,7 +115,6 @@ export function authenticateUser(email, password) {
   if (!user) return null;
   if (!compareSync(password, user.password_hash)) return null;
 
-  // Update last login
   db.prepare("UPDATE users SET last_login = unixepoch() WHERE id = ?").run(user.id);
 
   return {
@@ -149,8 +140,7 @@ export function getUserById(id) {
   };
 }
 
-// --- Session operations ---
-const SESSION_TTL = 7 * 24 * 60 * 60; // 7 days in seconds
+const SESSION_TTL = 7 * 24 * 60 * 60;
 
 export function createSession(userId) {
   const token = crypto.randomBytes(32).toString("hex");
@@ -186,7 +176,6 @@ export function deleteUserSessions(userId) {
   db.prepare("DELETE FROM sessions WHERE user_id = ?").run(userId);
 }
 
-// --- Admin operations ---
 export function getAllUsers() {
   const users = db.prepare(
     "SELECT id, email, display_name, role, features, created_at, last_login FROM users ORDER BY created_at DESC"
@@ -229,7 +218,6 @@ export function getRecentSignups(days = 7) {
   return db.prepare("SELECT COUNT(*) as count FROM users WHERE created_at > ?").get(since).count;
 }
 
-// --- Bookmark sync operations ---
 export function getUserBookmarks(userId) {
   return db.prepare(
     "SELECT url, title, created_at FROM bookmarks WHERE user_id = ? ORDER BY created_at DESC"
@@ -252,7 +240,6 @@ export function removeUserBookmark(userId, url) {
   db.prepare("DELETE FROM bookmarks WHERE user_id = ? AND url = ?").run(userId, url);
 }
 
-// --- History sync operations ---
 export function getUserHistory(userId, limit = 200) {
   return db.prepare(
     "SELECT url, title, visited_at FROM history WHERE user_id = ? ORDER BY visited_at DESC LIMIT ?"

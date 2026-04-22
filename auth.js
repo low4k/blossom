@@ -1,5 +1,4 @@
-// Blossom — Authentication routes and middleware
-// Session-based auth with httpOnly cookies
+
 
 import { Router } from "express";
 import {
@@ -12,17 +11,14 @@ import {
 
 const router = Router();
 
-// Body parsing is handled globally by express.json() in server.js
-
-const COOKIE_NAME = "_bsid"; // Innocent-looking cookie name
+const COOKIE_NAME = "_bsid";
 const COOKIE_OPTS = {
   httpOnly: true,
   sameSite: "lax",
   path: "/",
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
-// POST /auth/register
 router.post("/register", (req, res) => {
   const { email, password, displayName } = req.body || {};
 
@@ -30,12 +26,10 @@ router.post("/register", (req, res) => {
     return res.status(400).json({ error: "Email and password are required" });
   }
 
-  // Validate email format
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ error: "Invalid email format" });
   }
 
-  // Password strength
   if (password.length < 6) {
     return res.status(400).json({ error: "Password must be at least 6 characters" });
   }
@@ -45,7 +39,6 @@ router.post("/register", (req, res) => {
     return res.status(409).json({ error: result.error });
   }
 
-  // Auto-login after registration
   const user = authenticateUser(email, password);
   const session = createSession(user.id);
 
@@ -63,7 +56,6 @@ router.post("/register", (req, res) => {
   });
 });
 
-// POST /auth/login
 router.post("/login", (req, res) => {
   const { email, password } = req.body || {};
 
@@ -91,7 +83,6 @@ router.post("/login", (req, res) => {
   });
 });
 
-// POST /auth/logout
 router.post("/logout", (req, res) => {
   const token = parseCookie(req.headers.cookie, COOKIE_NAME);
   if (token) deleteSession(token);
@@ -99,7 +90,6 @@ router.post("/logout", (req, res) => {
   res.json({ ok: true });
 });
 
-// GET /auth/me — check current session
 router.get("/me", (req, res) => {
   const token = parseCookie(req.headers.cookie, COOKIE_NAME);
   const user = validateSession(token);
@@ -117,23 +107,21 @@ router.get("/me", (req, res) => {
   });
 });
 
-// --- Auth middleware for protecting routes ---
 export function requireAuth(req, res, next) {
   const token = parseCookie(req.headers.cookie, COOKIE_NAME);
   const user = validateSession(token);
   if (!user) {
-    // For API routes, return 401
+
     if (req.path.startsWith("/auth/") || req.path.startsWith("/admin/")) {
       return res.status(401).json({ error: "Not authenticated" });
     }
-    // For page routes, redirect to login
+
     return res.redirect("/login");
   }
   req.user = user;
   next();
 }
 
-// --- Dev role middleware ---
 export function requireDev(req, res, next) {
   if (!req.user || req.user.role !== "dev") {
     return res.status(403).json({ error: "Forbidden" });
@@ -141,7 +129,6 @@ export function requireDev(req, res, next) {
   next();
 }
 
-// Cookie parser (no dependency needed)
 function parseCookie(cookieHeader, name) {
   if (!cookieHeader) return null;
   const match = cookieHeader.split(";").find((c) => c.trim().startsWith(name + "="));

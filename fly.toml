@@ -1,7 +1,3 @@
-# fly.toml app configuration file generated for blossom-cold-cloud-8187 on 2026-04-14T17:18:52-04:00
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
 
 app = 'blossom-cold-cloud-8187'
 primary_region = 'iad'

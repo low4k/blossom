@@ -1,16 +1,13 @@
-// Service worker registration for Scramjet
+
 
 const ALLOWED_HOSTNAMES = ["localhost", "127.0.0.1"];
 const VERSION_KEY = "blossom_version";
 
 let swReady = false;
 
-// Nuke ALL stale service workers, caches, and IDB so fresh code always loads.
-// Called automatically when the server version changes.
 async function purgeStaleData() {
   console.log("[Blossom] Purging stale SW data...");
 
-  // 1. Unregister only OUR service workers (scope-aware, safe on shared origins)
   const regs = await navigator.serviceWorker.getRegistrations();
   for (const reg of regs) {
     if (reg.active?.scriptURL?.includes("/sw.js") || reg.scope.endsWith("/")) {
@@ -19,14 +16,12 @@ async function purgeStaleData() {
     }
   }
 
-  // 2. Clear all caches
   const cacheNames = await caches.keys();
   for (const name of cacheNames) {
     await caches.delete(name);
     console.log("[Blossom] Deleted cache:", name);
   }
 
-  // 3. Delete scramjet IDB (by known name — indexedDB.databases() not supported in Firefox)
   for (const name of ["$scramjet"]) {
     await new Promise((resolve) => {
       const req = indexedDB.deleteDatabase(name);
@@ -48,7 +43,6 @@ export async function registerSW(serverVersion, proxyPrefix, scramjetPrefix) {
     throw new Error("Your browser doesn't support service workers.");
   }
 
-  // Auto-purge when server version changes (or on first visit)
   const storedVersion = localStorage.getItem(VERSION_KEY);
   if (serverVersion && storedVersion !== serverVersion) {
     console.log(`[Blossom] Version changed: ${storedVersion} → ${serverVersion}`);
@@ -56,20 +50,16 @@ export async function registerSW(serverVersion, proxyPrefix, scramjetPrefix) {
     localStorage.setItem(VERSION_KEY, serverVersion);
   }
 
-  // Pass config to SW via URL params so it can importScripts at the top level.
-  // importScripts ONLY works during initial script evaluation — NOT in fetch handlers.
   const p = encodeURIComponent(proxyPrefix || "/assets/wasm/");
   const s = encodeURIComponent(scramjetPrefix || "/~/");
   const swUrl = `/sw.js?p=${p}&s=${s}`;
 
   const reg = await navigator.serviceWorker.register(swUrl, { updateViaCache: "none" });
 
-  // If there's a waiting SW, activate it immediately
   if (reg.waiting) {
     reg.waiting.postMessage({ type: "skipWaiting" });
   }
 
-  // If a new SW is found during update, activate it
   reg.addEventListener("updatefound", () => {
     const newWorker = reg.installing;
     if (newWorker) {
@@ -83,12 +73,10 @@ export async function registerSW(serverVersion, proxyPrefix, scramjetPrefix) {
 
   await navigator.serviceWorker.ready;
 
-  // Wait for controller to be available (skipWaiting + clients.claim fires this)
-  // This is required so that ScramjetController.init() can postMessage to the SW
   if (!navigator.serviceWorker.controller) {
     await new Promise((resolve) => {
       navigator.serviceWorker.addEventListener("controllerchange", resolve, { once: true });
-      setTimeout(resolve, 3000); // Fallback timeout
+      setTimeout(resolve, 3000);
     });
   }
 

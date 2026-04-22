@@ -1,5 +1,4 @@
-// Bookmarks — save proxied sites to revisit later
-// localStorage as fast cache, server-backed sync for persistence across devices
+
 
 const STORAGE_KEY = "blossom-bookmarks";
 
@@ -11,7 +10,7 @@ export function addBookmark(url, title) {
   if (bookmarks.some((b) => b.url === url)) return;
   bookmarks.unshift({ url, title: title || url, time: Date.now() });
   save();
-  // Sync to server (fire-and-forget)
+
   fetch("/api/bookmarks", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -33,7 +32,6 @@ export function isBookmarked(url) {
   return bookmarks.some((b) => b.url === url);
 }
 
-// Pull from server on login — server is source of truth
 export async function syncBookmarksFromServer() {
   try {
     const resp = await fetch("/api/bookmarks");

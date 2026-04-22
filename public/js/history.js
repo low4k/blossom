@@ -1,5 +1,4 @@
-// Browsing history — tracks proxied sites visited
-// localStorage as fast cache, server-backed sync
+
 
 const STORAGE_KEY = "blossom-history";
 const MAX_ENTRIES = 200;
@@ -13,7 +12,7 @@ export function addToHistory(url, title) {
   history.unshift({ url, title: title || url, time: Date.now() });
   if (history.length > MAX_ENTRIES) history.length = MAX_ENTRIES;
   save();
-  // Sync to server
+
   fetch("/api/history", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -53,10 +52,6 @@ export async function syncHistoryFromServer() {
     if (history.length > MAX_ENTRIES) history.length = MAX_ENTRIES;
     save();
   } catch {}
-}
-
-function save() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
 }
 
 function save() {

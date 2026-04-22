@@ -1,6 +1,4 @@
-// Tab cloaking — disguises the browser tab
-// Improvements: supports multiple presets, persists choice,
-// about:blank popup cloak (Chrome only)
+
 
 const CLOAKS = {
   google:    { title: "Google",            favicon: "https://www.google.com/favicon.ico" },
@@ -21,7 +19,7 @@ export function applyCloak(name) {
 
   const cloak = CLOAKS[currentCloak];
   if (!cloak) {
-    // Restore original — we don't know what it was, so just set Blossom
+
     document.title = "Blossom";
     setFavicon(null);
     return;
@@ -45,9 +43,6 @@ function setFavicon(url) {
   link.href = url || "";
 }
 
-// About:blank cloaking — opens the entire page inside an about:blank popup
-// The URL bar shows "about:blank" which is undetectable by monitoring software
-// Note: breaks on Firefox — the proxy won't work inside about:blank on FF
 export function launchAboutBlankCloak() {
   const isFirefox = navigator.userAgent.includes("Firefox");
   if (isFirefox) {
@@ -81,6 +76,5 @@ export function launchAboutBlankCloak() {
 </html>`);
   doc.close();
 
-  // Close the original tab
   window.close();
 }

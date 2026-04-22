@@ -1,5 +1,4 @@
-// Blossom — Admin routes (dev-only)
-// User management, feature toggling, system stats
+
 
 import { Router } from "express";
 import { requireAuth, requireDev } from "./auth.js";
@@ -15,10 +14,8 @@ import {
 
 const router = Router();
 
-// All admin routes require auth + dev role
 router.use(requireAuth, requireDev);
 
-// GET /admin/api/stats
 router.get("/api/stats", (_req, res) => {
   res.json({
     totalUsers: getUserCount(),
@@ -29,12 +26,10 @@ router.get("/api/stats", (_req, res) => {
   });
 });
 
-// GET /admin/api/users
 router.get("/api/users", (_req, res) => {
   res.json(getAllUsers());
 });
 
-// PUT /admin/api/users/:id/features
 router.put("/api/users/:id/features", (req, res) => {
   const userId = parseInt(req.params.id, 10);
   const features = req.body;
@@ -45,7 +40,6 @@ router.put("/api/users/:id/features", (req, res) => {
   res.json({ ok: true });
 });
 
-// PUT /admin/api/users/:id/role
 router.put("/api/users/:id/role", (req, res) => {
   const userId = parseInt(req.params.id, 10);
   const { role } = req.body || {};
@@ -56,7 +50,6 @@ router.put("/api/users/:id/role", (req, res) => {
   res.json({ ok: true });
 });
 
-// DELETE /admin/api/users/:id
 router.delete("/api/users/:id", (req, res) => {
   const userId = parseInt(req.params.id, 10);
   deleteUser(userId);

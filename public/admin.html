@@ -47,7 +47,6 @@
       font-size: 14px;
     }
 
-    /* Stats */
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -74,7 +73,6 @@
       letter-spacing: 0.06em;
     }
 
-    /* Users table */
     .section-title {
       font-size: 16px;
       font-weight: 700;
@@ -167,7 +165,7 @@
       .stat-card { padding: 14px; }
       .stat-value { font-size: 24px; }
     }
-  </style>
+</style>
 </head>
 <body>
   <div class="admin-shell">
@@ -193,7 +191,7 @@
   </div>
 
   <script>
-    // Auth check
+
     fetch("/auth/me").then(r => {
       if (!r.ok) return window.location.replace("/login");
       return r.json();
@@ -206,7 +204,7 @@
 
     async function loadDashboard() {
       await Promise.all([loadStats(), loadUsers()]);
-      // Refresh stats every 30s
+
       setInterval(loadStats, 30000);
     }
 
@@ -248,7 +246,6 @@
       for (const user of users) {
         const tr = document.createElement("tr");
 
-        // User info
         const tdUser = document.createElement("td");
         const nameDiv = document.createElement("div");
         nameDiv.style.fontWeight = "600";
@@ -261,7 +258,6 @@
         tdUser.appendChild(emailDiv);
         tr.appendChild(tdUser);
 
-        // Role
         const tdRole = document.createElement("td");
         const badge = document.createElement("span");
         badge.className = `badge badge-${user.role}`;
@@ -269,7 +265,6 @@
         tdRole.appendChild(badge);
         tr.appendChild(tdRole);
 
-        // Features
         const tdFeatures = document.createElement("td");
         for (const feat of FEATURES) {
           const toggle = document.createElement("span");
@@ -288,17 +283,14 @@
         }
         tr.appendChild(tdFeatures);
 
-        // Joined
         const tdJoined = document.createElement("td");
         tdJoined.textContent = user.createdAt ? new Date(user.createdAt * 1000).toLocaleDateString() : "-";
         tr.appendChild(tdJoined);
 
-        // Last login
         const tdLast = document.createElement("td");
         tdLast.textContent = user.lastLogin ? timeAgo(user.lastLogin * 1000) : "Never";
         tr.appendChild(tdLast);
 
-        // Actions
         const tdAction = document.createElement("td");
         if (user.role !== "dev") {
           const delBtn = document.createElement("button");
@@ -339,6 +331,6 @@
       if (diff < 86400000) return Math.floor(diff / 3600000) + "h ago";
       return Math.floor(diff / 86400000) + "d ago";
     }
-  </script>
+</script>
 </body>
 </html>

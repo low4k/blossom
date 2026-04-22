@@ -1,6 +1,5 @@
-/* Blossom — Mobile-first, clean, no-nonsense proxy UI */
 
-/* ===== Reset & Base ===== */
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 [hidden] { display: none !important; }
 
@@ -34,7 +33,6 @@ body {
   background-attachment: fixed;
 }
 
-/* ===== Top Bar ===== */
 #topbar {
   position: fixed;
   top: 0; left: 0; right: 0;
@@ -101,7 +99,6 @@ body {
   pointer-events: none;
 }
 
-/* ===== Main Content ===== */
 #app {
   padding-top: 52px;
   min-height: 100%;
@@ -113,7 +110,6 @@ body {
   padding: 24px 16px 60px;
 }
 
-/* ===== Hero / Search ===== */
 .hero {
   padding: 48px 0 32px;
   text-align: center;
@@ -187,7 +183,6 @@ body {
   font-size: 14px;
 }
 
-/* ===== Quick Links ===== */
 #quick-links h2, #recent-section h2 {
   font-size: 14px;
   text-transform: uppercase;
@@ -235,7 +230,6 @@ body {
   margin-top: 32px;
 }
 
-/* ===== Proxy Navigation Toolbar ===== */
 #proxy-toolbar {
   position: fixed;
   top: 52px; left: 0; right: 0;
@@ -307,7 +301,6 @@ body {
   color: var(--text);
 }
 
-/* Expand button (shown when toolbar is collapsed) */
 .proxy-expand-btn {
   position: fixed;
   top: 52px;
@@ -331,13 +324,11 @@ body {
   color: var(--text);
 }
 
-/* Adjust proxy frame position when toolbar is visible */
 #proxy-frame.with-toolbar {
   top: 92px;
   height: calc(100% - 92px);
 }
 
-/* ===== Loading Overlay ===== */
 #loading-overlay {
   position: fixed;
   top: 92px; left: 0;
@@ -369,7 +360,6 @@ body {
   font-size: 14px;
 }
 
-/* ===== Proxy Frame ===== */
 #proxy-frame {
   position: fixed;
   top: 52px; left: 0;
@@ -379,7 +369,6 @@ body {
   background: #fff;
 }
 
-/* ===== Side Panels ===== */
 .side-panel {
   position: fixed;
   top: 0; right: 0;
@@ -428,7 +417,6 @@ body {
   color: var(--text);
 }
 
-/* ===== Games ===== */
 #games-search {
   width: 100%;
   background: var(--bg-input);
@@ -470,7 +458,6 @@ body {
   gap: 12px;
 }
 
-/* Games full-screen view */
 #games-view {
   max-width: 960px;
   margin: 0 auto;
@@ -597,7 +584,6 @@ body {
 .game-fav:hover { background: rgba(0,0,0,0.8); }
 .game-fav.active { color: #ffd700; }
 
-/* ===== List Views (Bookmarks, History) ===== */
 .list-view {
   flex: 1;
   overflow-y: auto;
@@ -664,7 +650,6 @@ body {
   font-size: 14px;
 }
 
-/* ===== Settings ===== */
 .settings-body {
   padding: 16px;
   overflow-y: auto;
@@ -744,7 +729,6 @@ hr {
   margin: 20px 0;
 }
 
-/* Status dot */
 .dot {
   display: inline-block;
   width: 10px; height: 10px;
@@ -765,7 +749,6 @@ hr {
   color: var(--text-dim);
 }
 
-/* ===== Toast ===== */
 .toast {
   position: fixed;
   bottom: 24px;
@@ -799,7 +782,6 @@ hr {
   to   { transform: translateX(-50%) translateY(0); opacity: 1; }
 }
 
-/* ===== Error Overlay ===== */
 .overlay {
   position: fixed;
   inset: 0;
@@ -833,7 +815,6 @@ hr {
   justify-content: center;
 }
 
-/* ===== Mobile Responsive ===== */
 @media (max-width: 480px) {
   .hero-title { font-size: 32px; }
   .quick-grid { grid-template-columns: repeat(3, 1fr); }
@@ -850,7 +831,6 @@ hr {
   .quick-grid { grid-template-columns: repeat(4, 1fr); }
 }
 
-/* Hide scrollbar on panels */
 .list-view::-webkit-scrollbar,
 .games-grid::-webkit-scrollbar,
 .games-full-grid::-webkit-scrollbar,
@@ -865,7 +845,6 @@ hr {
   border-radius: 3px;
 }
 
-/* ===== Loading / Transitions ===== */
 #home-view {
   animation: fadeIn 0.3s ease;
 }
@@ -883,13 +862,11 @@ hr {
   animation: fadeIn 0.2s ease;
 }
 
-/* Focus visible for keyboard nav */
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-/* ===== Firefox Scrollbar ===== */
 .list-view,
 .games-grid,
 .settings-body {
@@ -897,7 +874,6 @@ hr {
   scrollbar-color: #333 transparent;
 }
 
-/* ===== Safe Area Insets (notched devices) ===== */
 #topbar {
   padding-left: max(16px, env(safe-area-inset-left));
   padding-right: max(16px, env(safe-area-inset-right));

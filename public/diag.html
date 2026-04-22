@@ -13,7 +13,7 @@
     h1 { color: #e8a0bf; }
     button { padding: 8px 16px; margin: 8px 4px; cursor: pointer; background: #333; color: #eee; border: 1px solid #555; border-radius: 4px; }
     button:hover { background: #444; }
-  </style>
+</style>
 </head>
 <body>
   <h1>Blossom Diagnostics</h1>
@@ -39,7 +39,6 @@
       log.innerHTML = "";
       info("Running diagnostics...\n");
 
-      // 1. Cross-origin isolation
       info("=== Cross-Origin Isolation ===");
       if (crossOriginIsolated) {
         ok("crossOriginIsolated = true (SharedArrayBuffer available)");
@@ -49,7 +48,6 @@
         info("  COEP header needed: Cross-Origin-Embedder-Policy: credentialless (or require-corp)");
       }
 
-      // 2. SharedArrayBuffer
       info("\n=== SharedArrayBuffer ===");
       if (typeof SharedArrayBuffer !== "undefined") {
         ok("SharedArrayBuffer is available");
@@ -57,7 +55,6 @@
         fail("SharedArrayBuffer is NOT available — BareMux will not work");
       }
 
-      // 3. Service Worker support
       info("\n=== Service Worker ===");
       if (!navigator.serviceWorker) {
         fail("navigator.serviceWorker is undefined — SW not supported (need HTTPS?)");
@@ -65,14 +62,12 @@
       }
       ok("navigator.serviceWorker exists");
 
-      // Check registrations
       const regs = await navigator.serviceWorker.getRegistrations();
       info("  Registered SWs: " + regs.length);
       for (const r of regs) {
         info("    scope: " + r.scope + " active: " + !!r.active + " waiting: " + !!r.waiting + " installing: " + !!r.installing);
       }
 
-      // Check controller
       if (navigator.serviceWorker.controller) {
         ok("SW controller is set: " + navigator.serviceWorker.controller.scriptURL);
       } else {
@@ -81,11 +76,10 @@
         warn("  The SW may need clients.claim() or the page may need a reload");
       }
 
-      // Try to register (use config prefixes like the real app does)
       info("\n  Attempting SW registration...");
       try {
         let swUrl = "/sw.js";
-        // Fetch config to get real prefixes, same as register-sw.js
+
         try {
           const cfgResp = await fetch("/blossom-config.json");
           const cfg = await cfgResp.json();
@@ -102,7 +96,6 @@
         fail("SW registration failed: " + e.message);
       }
 
-      // Wait for ready
       try {
         const readyReg = await Promise.race([
           navigator.serviceWorker.ready,
@@ -113,7 +106,6 @@
         fail("navigator.serviceWorker.ready failed/timeout: " + e.message);
       }
 
-      // Re-check controller after registration
       if (!navigator.serviceWorker.controller) {
         info("  Waiting for controller...");
         try {
@@ -131,7 +123,6 @@
         }
       }
 
-      // 4. Config
       info("\n=== Server Config ===");
       let cfg;
       try {
@@ -157,7 +148,6 @@
         fail("Config fetch failed: " + e.message);
       }
 
-      // 5. Scramjet
       info("\n=== Scramjet ===");
       if (typeof $scramjetLoadController === "function") {
         ok("$scramjetLoadController is available");
@@ -210,7 +200,6 @@
         }
       }
 
-      // 6. BareMux
       info("\n=== BareMux ===");
       if (typeof BareMux !== "undefined") {
         ok("BareMux global is available");
@@ -236,7 +225,6 @@
         }
       }
 
-      // 7. SharedWorker
       info("\n=== SharedWorker ===");
       if (typeof SharedWorker !== "undefined") {
         ok("SharedWorker is available");
@@ -244,7 +232,7 @@
           try {
             const sw = new SharedWorker(cfg.baremuxPrefix + "worker.js", "bare-mux-worker");
             ok("SharedWorker created: " + cfg.baremuxPrefix + "worker.js");
-            // Test if it responds
+
             const mc = new MessageChannel();
             const pong = new Promise((resolve, reject) => {
               mc.port1.onmessage = (e) => { resolve(e.data); };
@@ -265,7 +253,6 @@
         fail("SharedWorker is NOT available — BareMux requires it");
       }
 
-      // 8. Transport test
       info("\n=== Transport ===");
       if (typeof BareMux !== "undefined" && cfg) {
         try {
@@ -298,7 +285,6 @@
         warn("Skipping transport test (BareMux not available or config missing)");
       }
 
-      // 9. WebSocket connectivity
       info("\n=== WebSocket Connectivity ===");
       const wsUrl = (location.protocol === "https:" ? "wss" : "ws") + "://" + location.host + (cfg?.wispPath || "/ws/");
       try {
@@ -314,7 +300,6 @@
         warn("  This means the wisp proxy transport cannot work");
       }
 
-      // 10. IDB check
       info("\n=== IndexedDB ===");
       try {
         if (indexedDB.databases) {
@@ -323,7 +308,7 @@
         } else {
           info("  indexedDB.databases() not supported (Firefox)");
         }
-        // Check $scramjet DB
+
         const req = indexedDB.open("$scramjet", 1);
         await new Promise((resolve, reject) => {
           req.onsuccess = () => {
@@ -348,7 +333,6 @@
         fail("IDB check failed: " + e.message);
       }
 
-      // 11. localStorage
       info("\n=== localStorage ===");
       info("  blossom_version: " + localStorage.getItem("blossom_version"));
       info("  bare-mux-path: " + localStorage.getItem("bare-mux-path"));
@@ -398,8 +382,7 @@
       }
     }
 
-    // Run automatically on load
     runAll();
-  </script>
+</script>
 </body>
 </html>

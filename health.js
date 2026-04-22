@@ -1,4 +1,4 @@
-// Health check endpoint — exposes server status as JSON
+
 
 import config from "./config.js";
 
