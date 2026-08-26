@@ -748,7 +748,7 @@ async function checkHealth() {
     if (resp.ok) {
       const data = await resp.json();
       dot.className = "dot dot-ok";
-      text.textContent = `Online — ${data.uptime}s uptime`;
+      text.textContent = `Online - ${data.uptime}s uptime`;
     } else {
       dot.className = "dot dot-fail";
       text.textContent = "Server error";

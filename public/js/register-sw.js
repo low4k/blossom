@@ -45,7 +45,7 @@ export async function registerSW(serverVersion, proxyPrefix, scramjetPrefix) {
 
   const storedVersion = localStorage.getItem(VERSION_KEY);
   if (serverVersion && storedVersion !== serverVersion) {
-    console.log(`[Blossom] Version changed: ${storedVersion} → ${serverVersion}`);
+    console.log(`[Blossom] Version changed: ${storedVersion} -> ${serverVersion}`);
     await purgeStaleData();
     localStorage.setItem(VERSION_KEY, serverVersion);
   }

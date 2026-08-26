@@ -40,7 +40,7 @@ async function handleProxy(event) {
       scramjet.config = null;
       await scramjet.loadConfig();
       if (!scramjet.config) {
-        throw new Error("Configuration not available — try reloading the page");
+        throw new Error("Configuration not available - try reloading the page");
       }
       ready = true;
     }

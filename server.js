@@ -211,14 +211,14 @@ server.on("upgrade", (req, socket, head) => {
   if (req.url && req.url.endsWith(config.wispPath)) {
     wisp.routeRequest(req, socket, head);
   } else {
-    console.log(`[WS Upgrade] Rejected — no match for ${config.wispPath}`);
+    console.log(`[WS Upgrade] Rejected - no match for ${config.wispPath}`);
     socket.end();
   }
 });
 
 const port = config.port;
 server.listen(port, "0.0.0.0", () => {
-  console.log(`\n  🌸 Blossom is running`);
+  console.log(`\n  Blossom is running`);
   console.log(`     http://localhost:${port}`);
   console.log(`     Wisp endpoint:    ${config.wispPath}`);
   console.log(`     Proxy prefix:     ${config.proxyPrefix}`);

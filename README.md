@@ -8,16 +8,16 @@ Built on Scramjet + Wisp, with a session-based auth layer, per-user sync (bookma
 
 - **Scramjet proxy** with Epoxy and BareMux transport support
 - **Wisp WebSocket** endpoint for low-latency tunneling
-- **Path randomization** — configurable prefixes to avoid pattern-based blocking
-- **Account system** — register/login, httpOnly session cookies, bcrypt hashes
-- **Server-side sync** — bookmarks and history stored per user in SQLite
-- **Admin dashboard** — user management, feature toggles, live stats (dev role only)
-- **Feature flags** — enable/disable proxy, games, bookmarks, settings per user
-- **Tab cloaking** — customize title/favicon to blend in
-- **Panic key** — instant redirect to a safe URL
-- **Domain survival** — mirror list with automatic failover
-- **Built-in games** — Breakout, Memory, Snake
-- **PWA** — installable, service worker cached
+- **Path randomization** - configurable prefixes to avoid pattern-based blocking
+- **Account system** - register/login, httpOnly session cookies, bcrypt hashes
+- **Server-side sync** - bookmarks and history stored per user in SQLite
+- **Admin dashboard** - user management, feature toggles, live stats (dev role only)
+- **Feature flags** - enable/disable proxy, games, bookmarks, settings per user
+- **Tab cloaking** - customize title/favicon to blend in
+- **Panic key** - instant redirect to a safe URL
+- **Domain survival** - mirror list with automatic failover
+- **Built-in games** - Breakout, Memory, Snake
+- **PWA** - installable, service worker cached
 - **Rate limiting**, Helmet security headers, COOP/COEP for SharedArrayBuffer
 
 ## Quick start
@@ -44,8 +44,8 @@ All configuration is via environment variables. Copy [.env.example](.env.example
 | `WISP_PATH` | `/ws/` | Wisp WebSocket upgrade path |
 | `SCRAMJET_PREFIX` | `/~/` | Scramjet URL rewrite prefix |
 | `DNS_SERVERS` | `1.1.1.3,1.0.0.3` | Upstream DNS for Wisp |
-| `DEV_EMAIL` | — | Seeded dev account email |
-| `DEV_PASS` | — | Seeded dev account password |
+| `DEV_EMAIL` | - | Seeded dev account email |
+| `DEV_PASS` | - | Seeded dev account password |
 
 Change the path prefixes on every deployment so filters can't pattern-match.
 
