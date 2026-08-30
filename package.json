@@ -20,7 +20,7 @@
   "dependencies": {
     "@mercuryworkshop/bare-mux": "^2.1.8",
     "@mercuryworkshop/epoxy-transport": "^2.1.28",
-    "@mercuryworkshop/scramjet": "https://github.com/MercuryWorkshop/scramjet/releases/download/latest/mercuryworkshop-scramjet-2.0.67-alpha.2.tgz",
+    "@mercuryworkshop/scramjet": "2.0.0-alpha",
     "@mercuryworkshop/wisp-js": "^0.3.3",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.9.0",
@@ -29,5 +29,8 @@
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.0.0",
     "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1"
   }
 }
