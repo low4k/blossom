@@ -66,21 +66,25 @@ const DEFAULT_FEATURES = {
   settings: true,
 };
 
-const DEV_EMAIL = process.env.DEV_EMAIL || "vendint3@gmail.com";
-const DEV_PASS = process.env.DEV_PASS || "january1311";
+// Dev account is only seeded when DEV_EMAIL and DEV_PASS are explicitly provided
+// (e.g. via environment secrets on the host). No hardcoded fallbacks.
+const DEV_EMAIL = process.env.DEV_EMAIL;
+const DEV_PASS = process.env.DEV_PASS;
 
-const existingDev = db.prepare("SELECT id FROM users WHERE email = ?").get(DEV_EMAIL);
-if (!existingDev) {
-  db.prepare(
-    "INSERT INTO users (email, display_name, password_hash, role, features) VALUES (?, ?, ?, ?, ?)"
-  ).run(
-    DEV_EMAIL,
-    "Developer",
-    hashSync(DEV_PASS, 10),
-    "dev",
-    JSON.stringify({ proxy: true, games: true, bookmarks: true, settings: true, admin: true })
-  );
-  console.log("[DB] Dev account seeded");
+if (DEV_EMAIL && DEV_PASS) {
+  const existingDev = db.prepare("SELECT id FROM users WHERE email = ?").get(DEV_EMAIL);
+  if (!existingDev) {
+    db.prepare(
+      "INSERT INTO users (email, display_name, password_hash, role, features) VALUES (?, ?, ?, ?, ?)"
+    ).run(
+      DEV_EMAIL,
+      "Developer",
+      hashSync(DEV_PASS, 10),
+      "dev",
+      JSON.stringify({ proxy: true, games: true, bookmarks: true, settings: true, admin: true })
+    );
+    console.log("[DB] Dev account seeded");
+  }
 }
 
 function hashToken(token) {
