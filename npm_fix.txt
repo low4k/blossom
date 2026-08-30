@@ -1,4 +1,0 @@
-npm warn deprecated @mercuryworkshop/scramjet@2.0.0-alpha: this build is broken, please do not use it
-
-added 1 package, removed 6 packages, and changed 3 packages in 8s
-EXIT:0 

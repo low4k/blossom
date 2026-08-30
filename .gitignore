@@ -6,3 +6,15 @@ blossom.db
 blossom.db-wal
 blossom.db-shm
 .directory
+
+# QA scratch output
+test/e2e/artifacts/
+e2e_out.txt
+e2e_err.txt
+npm_out.txt
+npm_fix.txt
+npm_ci.txt
+pw.txt
+pw_install.txt
+setup.txt
+boot.txt

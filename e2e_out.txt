@@ -1,8 +1,0 @@
-PASS  [auth] login page renders
-PASS  [auth] register lands logged in on / — url=http://localhost:8123/
-PASS  [auth] wrong password shows generic error — text="Invalid email or password"
-PASS  [auth] logout clears session (401 afterwards) — got=401
-PASS  [admin] dev account opens admin dashboard
-PASS  [admin] non-dev redirected away from /admin — url=http://localhost:8123/
-
-=== 6/6 passed, 0 failed ===
