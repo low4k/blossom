@@ -10,6 +10,8 @@ import {
   getUserCount,
   getActiveSessionCount,
   getRecentSignups,
+  logAdminAction,
+  getAdminLog,
 } from "./db.js";
 
 const router = Router();
@@ -30,6 +32,10 @@ router.get("/api/users", (_req, res) => {
   res.json(getAllUsers());
 });
 
+router.get("/api/log", (_req, res) => {
+  res.json(getAdminLog(100));
+});
+
 router.put("/api/users/:id/features", (req, res) => {
   const userId = parseInt(req.params.id, 10);
   const features = req.body;
@@ -37,6 +43,7 @@ router.put("/api/users/:id/features", (req, res) => {
     return res.status(400).json({ error: "Invalid features object" });
   }
   updateUserFeatures(userId, features);
+  logAdminAction(req.user, "update_features", userId, JSON.stringify(features));
   res.json({ ok: true });
 });
 
@@ -46,13 +53,18 @@ router.put("/api/users/:id/role", (req, res) => {
   if (!role || !["user", "dev"].includes(role)) {
     return res.status(400).json({ error: "Invalid role" });
   }
-  updateUserRole(userId, role);
+  const result = updateUserRole(userId, role);
+  if (result.error) {
+    return res.status(409).json({ error: result.error });
+  }
+  logAdminAction(req.user, "update_role", userId, role);
   res.json({ ok: true });
 });
 
 router.delete("/api/users/:id", (req, res) => {
   const userId = parseInt(req.params.id, 10);
   deleteUser(userId);
+  logAdminAction(req.user, "delete_user", userId, "");
   res.json({ ok: true });
 });
 

@@ -25,3 +25,10 @@ primary_region = 'iad'
   memory = '256mb'
   cpu_kind = 'shared'
   cpus = 1
+
+# Persistent volume for the SQLite DB (data/blossom.db).
+# Create it BEFORE deploying:  fly volumes create blossom_data --size 1 --region iad
+# Then uncomment the section below, or every deploy/restart wipes user data.
+# [[mounts]]
+#   source = "blossom_data"
+#   destination = "/app/data"

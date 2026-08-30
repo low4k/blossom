@@ -28,6 +28,10 @@ Object.assign(wisp.options, config.wisp);
 
 const app = express();
 
+// Single reverse-proxy hop in front of the app (Fly.io / Cloudflare -> Railway).
+// This makes req.protocol / req.ip read X-Forwarded-*, which feeds the Secure
+// cookie flag and rate limiting. Do NOT raise this number above the real hop
+// count — clients could then spoof X-Forwarded-For and bypass rate limits.
 app.set("trust proxy", 1);
 
 app.use((req, res, next) => {
@@ -75,6 +79,16 @@ app.get("/login", (_req, res) => {
   res.sendFile(path.join(publicPath, "login.html"));
 });
 
+// True when the request comes from client-side fetch/XHR rather than a page
+// navigation. fetch() sends sec-fetch-dest: empty; navigations send "document".
+function wantsJson(req) {
+  return (
+    req.xhr ||
+    req.headers["sec-fetch-dest"] === "empty" ||
+    (req.headers.accept || "").includes("application/json")
+  );
+}
+
 app.use((req, res, next) => {
 
   const publicPaths = ["/styles.css", "/login.html", "/diag.html"];
@@ -95,8 +109,7 @@ app.use((req, res, next) => {
   const token = parseCookie(req.headers.cookie, COOKIE_NAME);
   const user = validateSession(token);
   if (!user) {
-
-    if (req.headers.accept?.includes("application/json") || req.path.startsWith("/admin/api")) {
+    if (wantsJson(req) || req.path.startsWith("/admin/api") || req.path.startsWith("/api/")) {
       return res.status(401).json({ error: "Not authenticated" });
     }
     return res.redirect("/login");
@@ -110,15 +123,28 @@ app.use("/admin", adminRouter);
 app.get("/api/bookmarks", requireAuth, (req, res) => {
   res.json(getUserBookmarks(req.user.id));
 });
+
+// Stored URLs must be plain http(s) URLs of sane length — anything else
+// (javascript: URIs, oversized blobs) is rejected before hitting the DB.
+const MAX_URL_LENGTH = 2048;
+const MAX_TITLE_LENGTH = 256;
+function validStoredUrl(url) {
+  return typeof url === "string" && url.length > 0 && url.length <= MAX_URL_LENGTH && /^https?:\/\//i.test(url);
+}
+function validTitle(title) {
+  return typeof title === "string" && title.length <= MAX_TITLE_LENGTH;
+}
+
 app.post("/api/bookmarks", requireAuth, (req, res) => {
   const { url, title } = req.body || {};
-  if (!url) return res.status(400).json({ error: "url is required" });
+  if (!validStoredUrl(url)) return res.status(400).json({ error: "A valid http(s) url is required" });
+  if (!validTitle(title || "")) return res.status(400).json({ error: "Title too long" });
   addUserBookmark(req.user.id, url, title || "");
   res.json({ ok: true });
 });
 app.delete("/api/bookmarks", requireAuth, (req, res) => {
   const { url } = req.body || {};
-  if (!url) return res.status(400).json({ error: "url is required" });
+  if (!url || typeof url !== "string" || url.length > MAX_URL_LENGTH) return res.status(400).json({ error: "url is required" });
   removeUserBookmark(req.user.id, url);
   res.json({ ok: true });
 });
@@ -128,7 +154,8 @@ app.get("/api/history", requireAuth, (req, res) => {
 });
 app.post("/api/history", requireAuth, (req, res) => {
   const { url, title } = req.body || {};
-  if (!url) return res.status(400).json({ error: "url is required" });
+  if (!validStoredUrl(url)) return res.status(400).json({ error: "A valid http(s) url is required" });
+  if (!validTitle(title || "")) return res.status(400).json({ error: "Title too long" });
   addUserHistory(req.user.id, url, title || "");
   res.json({ ok: true });
 });
@@ -138,12 +165,13 @@ app.delete("/api/history", requireAuth, (_req, res) => {
 });
 app.patch("/api/history", requireAuth, (req, res) => {
   const { url, title } = req.body || {};
-  if (!url || !title) return res.status(400).json({ error: "url and title are required" });
+  if (!validStoredUrl(url)) return res.status(400).json({ error: "A valid http(s) url is required" });
+  if (!validTitle(title) || !title) return res.status(400).json({ error: "title is required" });
   updateUserHistoryTitle(req.user.id, url, title);
   res.json({ ok: true });
 });
 
-app.get("/admin", (req, res) => {
+app.get(["/admin", "/admin/"], (req, res) => {
   if (req.user?.role !== "dev") return res.redirect("/");
   res.sendFile(path.join(publicPath, "admin.html"));
 });
@@ -191,11 +219,6 @@ app.use(config.baremuxPrefix, express.static(baremuxPath, {
 app.use(express.static(publicPath));
 
 app.get("*", (req, res) => {
-
-  if (req.path === "/admin" || req.path === "/admin/") {
-    if (req.user?.role !== "dev") return res.redirect("/");
-    return res.sendFile(path.join(publicPath, "admin.html"));
-  }
   res.sendFile(path.join(publicPath, "index.html"));
 });
 

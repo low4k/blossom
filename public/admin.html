@@ -188,6 +188,13 @@
     <div id="users-container">
       <p class="loading">Loading users...</p>
     </div>
+
+    <div class="section-title" style="margin-top: 32px;">
+      Audit Log <span class="user-count">(last 100 actions)</span>
+    </div>
+    <div id="log-container">
+      <p class="loading">Loading log...</p>
+    </div>
   </div>
 
   <script>
@@ -203,7 +210,7 @@
     const FEATURES = ["proxy", "games", "bookmarks", "settings"];
 
     async function loadDashboard() {
-      await Promise.all([loadStats(), loadUsers()]);
+      await Promise.all([loadStats(), loadUsers(), loadLog()]);
 
       setInterval(loadStats, 30000);
     }
@@ -231,6 +238,50 @@
         renderUsersTable(users, container);
       } catch {
         container.innerHTML = '<p class="loading">Failed to load users</p>';
+      }
+    }
+
+    async function loadLog() {
+      const container = document.getElementById("log-container");
+      try {
+        const res = await fetch("/admin/api/log");
+        const entries = await res.json();
+        if (!Array.isArray(entries) || entries.length === 0) {
+          container.innerHTML = '<p class="loading">No admin actions recorded yet</p>';
+          return;
+        }
+        const table = document.createElement("table");
+        table.className = "users-table";
+        const thead = document.createElement("thead");
+        thead.innerHTML = `<tr><th>When</th><th>Actor</th><th>Action</th><th>Target</th><th>Details</th></tr>`;
+        table.appendChild(thead);
+        const tbody = document.createElement("tbody");
+        for (const e of entries) {
+          const tr = document.createElement("tr");
+          const tdWhen = document.createElement("td");
+          tdWhen.textContent = e.created_at ? new Date(e.created_at * 1000).toLocaleString() : "-";
+          const tdActor = document.createElement("td");
+          tdActor.textContent = e.actor_email || "-";
+          const tdAction = document.createElement("td");
+          tdAction.textContent = e.action;
+          const tdTarget = document.createElement("td");
+          tdTarget.textContent = e.target_id != null ? `#${e.target_id}` : "-";
+          const tdDetails = document.createElement("td");
+          tdDetails.textContent = e.details || "-";
+          tdDetails.style.maxWidth = "220px";
+          tdDetails.style.overflowWrap = "anywhere";
+          tr.appendChild(tdWhen);
+          tr.appendChild(tdActor);
+          tr.appendChild(tdAction);
+          tr.appendChild(tdTarget);
+          tr.appendChild(tdDetails);
+          tbody.appendChild(tr);
+        }
+        table.appendChild(tbody);
+        container.innerHTML = "";
+        container.appendChild(table);
+      } catch {
+        container.innerHTML = '<p class="loading">Failed to load audit log</p>';
       }
     }
 
@@ -315,6 +366,7 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(features),
       });
+      loadLog();
     }
 
     async function deleteUserAction(userId, email) {
@@ -322,6 +374,7 @@
       await fetch(`/admin/api/users/${userId}`, { method: "DELETE" });
       loadUsers();
       loadStats();
+      loadLog();
     }
 
     function timeAgo(ts) {

@@ -5,3 +5,4 @@ data/
 blossom.db
 blossom.db-wal
 blossom.db-shm
+.directory

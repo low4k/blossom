@@ -57,6 +57,16 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON bookmarks(user_id);
   CREATE INDEX IF NOT EXISTS idx_history_user ON history(user_id);
+
+  CREATE TABLE IF NOT EXISTS admin_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    actor_id INTEGER,
+    actor_email TEXT NOT NULL DEFAULT '',
+    action TEXT NOT NULL,
+    target_id INTEGER,
+    details TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
 `);
 
 const DEFAULT_FEATURES = {
@@ -200,7 +210,27 @@ export function updateUserFeatures(userId, features) {
 }
 
 export function updateUserRole(userId, role) {
+  const target = db.prepare("SELECT id, role FROM users WHERE id = ?").get(userId);
+  if (!target) return { error: "User not found" };
+  // Prevent demoting the last remaining dev account (self-lockout guard)
+  if (target.role === "dev" && role !== "dev") {
+    const devCount = db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'dev'").get().count;
+    if (devCount <= 1) return { error: "Cannot demote the last dev account" };
+  }
   db.prepare("UPDATE users SET role = ? WHERE id = ?").run(role, userId);
+  return { ok: true };
+}
+
+export function logAdminAction(actor, action, targetId, details) {
+  db.prepare(
+    "INSERT INTO admin_log (actor_id, actor_email, action, target_id, details) VALUES (?, ?, ?, ?, ?)"
+  ).run(actor?.id || null, actor?.email || "", action, targetId ?? null, details || "");
+}
+
+export function getAdminLog(limit = 100) {
+  return db.prepare(
+    "SELECT actor_email, action, target_id, details, created_at FROM admin_log ORDER BY created_at DESC, id DESC LIMIT ?"
+  ).all(limit);
 }
 
 export function deleteUser(userId) {
@@ -261,7 +291,9 @@ export function clearUserHistory(userId) {
 }
 
 export function updateUserHistoryTitle(userId, url, title) {
+  // Always sync to the latest real title; history titles aren't user-customized
+  // so keeping the newest one is correct (prevents permanently stale titles).
   db.prepare(
-    "UPDATE history SET title = ? WHERE user_id = ? AND url = ? AND (title = '' OR title = url)"
+    "UPDATE history SET title = ? WHERE user_id = ? AND url = ?"
   ).run(title, userId, url);
 }

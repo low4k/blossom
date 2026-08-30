@@ -34,7 +34,13 @@ export function isBookmarked(url) {
 
 export async function syncBookmarksFromServer() {
   try {
-    const resp = await fetch("/api/bookmarks");
+    const resp = await fetch("/api/bookmarks", {
+      headers: { Accept: "application/json" },
+    });
+    if (resp.status === 401) {
+      location.href = "/login";
+      return;
+    }
     if (!resp.ok) return;
     const data = await resp.json();
     bookmarks = data.map((b) => ({

@@ -19,7 +19,22 @@ const COOKIE_OPTS = {
   maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
+// Registration gating (set via env):
+//   REGISTRATION=closed  -> disable self-registration entirely
+//   INVITE_CODE=secret   -> require this code to register
+const REGISTRATION_CLOSED = ["0", "false", "closed", "off"].includes(
+  (process.env.REGISTRATION || "").toLowerCase()
+);
+const INVITE_CODE = process.env.INVITE_CODE || "";
+
 router.post("/register", (req, res) => {
+  if (REGISTRATION_CLOSED) {
+    return res.status(403).json({ error: "Registration is disabled" });
+  }
+  if (INVITE_CODE && req.body?.inviteCode !== INVITE_CODE) {
+    return res.status(403).json({ error: "Invalid invite code" });
+  }
+
   const { email, password, displayName } = req.body || {};
 
   if (!email || !password) {
@@ -111,11 +126,15 @@ export function requireAuth(req, res, next) {
   const token = parseCookie(req.headers.cookie, COOKIE_NAME);
   const user = validateSession(token);
   if (!user) {
-
-    if (req.path.startsWith("/auth/") || req.path.startsWith("/admin/")) {
+    // XHR/fetch callers get a 401 so they can handle expiry explicitly
+    // instead of transparently following a redirect to the login HTML page.
+    const isXhr =
+      req.xhr ||
+      req.headers["sec-fetch-dest"] === "empty" ||
+      (req.headers.accept || "").includes("application/json");
+    if (isXhr || req.path.startsWith("/api/")) {
       return res.status(401).json({ error: "Not authenticated" });
     }
-
     return res.redirect("/login");
   }
   req.user = user;

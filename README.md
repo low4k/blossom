@@ -44,8 +44,11 @@ All configuration is via environment variables. Copy [.env.example](.env.example
 | `WISP_PATH` | `/ws/` | Wisp WebSocket upgrade path |
 | `SCRAMJET_PREFIX` | `/~/` | Scramjet URL rewrite prefix |
 | `DNS_SERVERS` | `1.1.1.3,1.0.0.3` | Upstream DNS for Wisp |
-| `DEV_EMAIL` | - | Seeded dev account email |
-| `DEV_PASS` | - | Seeded dev account password |
+| `DEV_EMAIL` | - | Seeded dev account email (required for an admin account) |
+| `DEV_PASS` | - | Seeded dev account password (required for an admin account) |
+| `MIRRORS` | - | Comma-separated mirror URLs for domain survival failover |
+| `REGISTRATION` | `open` | Set to `closed` to disable self-registration |
+| `INVITE_CODE` | - | If set, registration requires this code |
 
 Change the path prefixes on every deployment so filters can't pattern-match.
 

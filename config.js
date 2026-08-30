@@ -15,9 +15,10 @@ const config = {
 
   scramjetPrefix: process.env.SCRAMJET_PREFIX || "/~/",
 
-  mirrors: [
-
-  ],
+  mirrors: (process.env.MIRRORS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
 
   rateLimit: {
     windowMs: 60 * 1000,

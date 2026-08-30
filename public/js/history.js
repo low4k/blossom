@@ -41,7 +41,13 @@ export function clearHistory() {
 
 export async function syncHistoryFromServer() {
   try {
-    const resp = await fetch("/api/history");
+    const resp = await fetch("/api/history", {
+      headers: { Accept: "application/json" },
+    });
+    if (resp.status === 401) {
+      location.href = "/login";
+      return;
+    }
     if (!resp.ok) return;
     const data = await resp.json();
     history = data.map((h) => ({
