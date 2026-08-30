@@ -122,9 +122,16 @@ async function initScramjet() {
 
     const prefix = config.proxyPrefix || "/assets/wasm/";
     const scramjetPrefix = config.scramjetPrefix || "/~/";
+    const wispUrl =
+      (location.protocol === "https:" ? "wss" : "ws") +
+      "://" + location.host + (config.wispPath || "/ws/");
 
     scramjet = new ScramjetController({
       prefix: scramjetPrefix,
+      // Scramjet's service worker builds its own epoxy client from this URL.
+      // Without it, config defaults to a scheme-less "/wisp/" and every proxied
+      // request fails with "Invalid URL scheme: None".
+      wisp: wispUrl,
       files: {
         wasm: prefix + "scramjet.wasm.wasm",
         all: prefix + "scramjet.all.js",
@@ -297,8 +304,24 @@ async function navigateTo(url) {
   });
 
   frame.frame.addEventListener("load", () => {
+    // Detect failed proxied loads and surface the app-level error overlay:
+    // 1. Our SW's 502 page (has #blossom-sw-error marker with detail), or
+    // 2. Scramjet's built-in error page (titled "Scramjet"), which it serves
+    //    directly when the upstream fetch fails (DNS failure, refused, etc.)
+    try {
+      const doc = frame.frame.contentDocument;
+      const errMarker = doc?.getElementById("blossom-sw-error");
+      const scramjetErrorPage = doc && doc.title === "Scramjet";
+      if (errMarker || scramjetErrorPage) {
+        const detail = errMarker?.dataset?.detail
+          || (doc?.body?.innerText || "").trim().slice(0, 200)
+          || "";
+        window.showProxyError(detail);
+        return;
+      }
+    } catch {}
     loadingOverlay.hidden = true;
-  }, { once: true });
+  });
 
   setTimeout(() => { loadingOverlay.hidden = true; }, 10000);
 
@@ -382,6 +405,13 @@ function wirePanels() {
       const panelId = btn.dataset.close;
       closePanel(panelId);
     });
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      const openPanel = document.querySelector(".side-panel.open");
+      if (openPanel) closePanel(openPanel.id);
+    }
   });
 
   document.addEventListener("click", (e) => {

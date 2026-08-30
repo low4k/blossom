@@ -56,9 +56,13 @@ async function handleProxy(event) {
 
     if (["document", "iframe"].includes(event.request.destination)) {
       const safe = String(err.message)
-        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+      // The error marker id/data attribute is detected by app.js, which then
+      // shows the app-level error overlay with working Retry/Home buttons.
       return new Response(
         `<!DOCTYPE html><html><body style="font-family:system-ui;background:#111;color:#eee;padding:2em;text-align:center">
+        <div id="blossom-sw-error" data-detail="${safe}"></div>
         <h2>Connection Error</h2><p style="color:#f88">${safe}</p>
         <button onclick="location.reload()" style="margin:1em;padding:.5em 1.5em;cursor:pointer">Reload</button></body></html>`,
         { status: 502, headers: { "Content-Type": "text/html" } }
