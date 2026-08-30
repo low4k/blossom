@@ -63,7 +63,10 @@ router.put("/api/users/:id/role", (req, res) => {
 
 router.delete("/api/users/:id", (req, res) => {
   const userId = parseInt(req.params.id, 10);
-  deleteUser(userId);
+  const result = deleteUser(userId);
+  if (result.error) {
+    return res.status(409).json({ error: result.error });
+  }
   logAdminAction(req.user, "delete_user", userId, "");
   res.json({ ok: true });
 });

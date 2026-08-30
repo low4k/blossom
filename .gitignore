@@ -9,6 +9,7 @@ blossom.db-shm
 
 # QA scratch output
 test/e2e/artifacts/
+test/e2e/qa-data/
 e2e_out.txt
 e2e_err.txt
 npm_out.txt

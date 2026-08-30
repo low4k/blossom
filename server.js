@@ -91,7 +91,7 @@ function wantsJson(req) {
 
 app.use((req, res, next) => {
 
-  const publicPaths = ["/styles.css", "/login.html", "/diag.html"];
+  const publicPaths = ["/styles.css", "/login.html", "/diag.html", "/manifest.webmanifest", "/icon.svg"];
   if (publicPaths.some((p) => req.path === p)) return next();
 
   if (req.path.startsWith(config.proxyPrefix) || req.path.startsWith(config.epoxyPrefix) || req.path.startsWith(config.baremuxPrefix)) {
@@ -99,6 +99,17 @@ app.use((req, res, next) => {
   }
 
   if (req.path === "/sw.js" || req.path.startsWith(config.scramjetPrefix)) {
+    // Server-side proxy feature enforcement: accounts with proxy disabled may
+    // not open proxied pages (document navigations). Subresources loaded inside
+    // an already-authorised proxied page keep working.
+    const dest = req.headers["sec-fetch-dest"];
+    if (dest === "document" || dest === "iframe") {
+      const token = parseCookie(req.headers.cookie, COOKIE_NAME);
+      const user = validateSession(token);
+      if (user && user.features?.proxy === false) {
+        return res.status(403).json({ error: "Proxy access is not enabled for your account" });
+      }
+    }
     return next();
   }
 

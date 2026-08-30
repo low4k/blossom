@@ -24,6 +24,14 @@ export function loadEnv(file = path.join(ROOT, ".env")) {
 export async function startServer() {
   const env = loadEnv();
   const port = env.PORT || "8123";
+
+  // Reset the isolated QA DB so every suite starts from a clean slate
+  // (only the seeded dev account). Never touches the real data/ DB.
+  if (env.DB_PATH && env.DB_PATH.includes("qa-data")) {
+    const dir = path.dirname(path.join(ROOT, env.DB_PATH));
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+
   const child = spawn("node", ["server.js"], {
     cwd: ROOT,
     env,

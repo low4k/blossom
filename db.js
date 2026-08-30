@@ -11,7 +11,15 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const dataDir = path.join(__dirname, "data");
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
-const db = new Database(path.join(dataDir, "blossom.db"));
+// Allow overriding the DB location (e.g. a mounted volume in production, or an
+// isolated file for tests). Directory is created if missing.
+const dbPath = process.env.DB_PATH || path.join(dataDir, "blossom.db");
+if (dbPath !== path.join(dataDir, "blossom.db")) {
+  const dir = path.dirname(dbPath);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+}
+
+const db = new Database(dbPath);
 
 db.pragma("journal_mode = WAL");
 db.pragma("busy_timeout = 5000");
@@ -234,8 +242,15 @@ export function getAdminLog(limit = 100) {
 }
 
 export function deleteUser(userId) {
+  const target = db.prepare("SELECT role FROM users WHERE id = ?").get(userId);
+  if (!target) return { error: "User not found" };
+  if (target.role === "dev") {
+    // Never delete or revoke sessions for dev accounts.
+    return { error: "Cannot delete a dev account" };
+  }
   db.prepare("DELETE FROM sessions WHERE user_id = ?").run(userId);
-  db.prepare("DELETE FROM users WHERE id = ? AND role != 'dev'").run(userId);
+  db.prepare("DELETE FROM users WHERE id = ?").run(userId);
+  return { ok: true };
 }
 
 export function getUserCount() {

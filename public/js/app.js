@@ -99,6 +99,7 @@ async function init() {
   wireQuickLinks();
   wirePanels();
   wireGames();
+  wireGamesView();
   wireHistoryPanel();
   wireProxyToolbar();
   wireLogoClick();
@@ -727,6 +728,29 @@ function updateBookmarkButton(url) {
   } else {
     btn.classList.remove("bookmarked");
   }
+}
+
+function wireGamesView() {
+  const gamesBtn = document.getElementById("btn-games");
+  const backBtn = document.getElementById("games-back");
+  if (gamesBtn) gamesBtn.addEventListener("click", showGamesView);
+  if (backBtn) backBtn.addEventListener("click", hideGamesView);
+}
+
+function showGamesView() {
+  closeAllPanels();
+  if (proxyActive) goHome();
+  const homeView = document.getElementById("home-view");
+  const gamesView = document.getElementById("games-view");
+  if (homeView) homeView.style.display = "none";
+  if (gamesView) gamesView.hidden = false;
+}
+
+function hideGamesView() {
+  const homeView = document.getElementById("home-view");
+  const gamesView = document.getElementById("games-view");
+  if (gamesView) gamesView.hidden = true;
+  if (homeView) homeView.style.display = "";
 }
 
 function wireLogoClick() {

@@ -28,11 +28,15 @@ const REGISTRATION_CLOSED = ["0", "false", "closed", "off"].includes(
 const INVITE_CODE = process.env.INVITE_CODE || "";
 
 router.post("/register", (req, res) => {
-  if (REGISTRATION_CLOSED) {
+  // Invite code takes precedence: if one is configured, registration is
+  // invite-gated (REGISTRATION=closed + a code still allows registration WITH
+  // the correct invite). Without an invite code, `closed` disables it fully.
+  if (INVITE_CODE) {
+    if (req.body?.inviteCode !== INVITE_CODE) {
+      return res.status(403).json({ error: "Invalid invite code" });
+    }
+  } else if (REGISTRATION_CLOSED) {
     return res.status(403).json({ error: "Registration is disabled" });
-  }
-  if (INVITE_CODE && req.body?.inviteCode !== INVITE_CODE) {
-    return res.status(403).json({ error: "Invalid invite code" });
   }
 
   const { email, password, displayName } = req.body || {};
