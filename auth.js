@@ -122,6 +122,23 @@ router.get("/me", (req, res) => {
   });
 });
 
+// 200-always variant used by client pages (e.g. the login page) to avoid
+// noisy 401 console errors on every logged-out page load.
+router.get("/status", (req, res) => {
+  const token = parseCookie(req.headers.cookie, COOKIE_NAME);
+  const user = validateSession(token);
+  res.json({
+    authenticated: !!user,
+    user: user ? {
+      id: user.id,
+      email: user.email,
+      displayName: user.displayName,
+      role: user.role,
+      features: user.features,
+    } : null,
+  });
+});
+
 export function requireAuth(req, res, next) {
   const token = parseCookie(req.headers.cookie, COOKIE_NAME);
   const user = validateSession(token);
@@ -143,6 +160,13 @@ export function requireAuth(req, res, next) {
 
 export function requireDev(req, res, next) {
   if (!req.user || req.user.role !== "dev") {
+    // Browser navigations to /admin get redirected home; API/fetch callers
+    // get a machine-readable 403.
+    const isXhr =
+      req.xhr ||
+      req.headers["sec-fetch-dest"] === "empty" ||
+      (req.headers.accept || "").includes("application/json");
+    if (!isXhr) return res.redirect("/");
     return res.status(403).json({ error: "Forbidden" });
   }
   next();

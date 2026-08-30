@@ -197,7 +197,7 @@
 
   <script>
 
-    fetch("/auth/me").then(r => { if (r.ok) window.location.replace("/"); });
+    fetch("/auth/status").then(r => r.json()).then(s => { if (s.authenticated) window.location.replace("/"); });
 
     const tabLogin = document.getElementById("tab-login");
     const tabReg = document.getElementById("tab-register");
