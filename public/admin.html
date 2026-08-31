@@ -153,6 +153,14 @@
     .btn-sm:hover { border-color: var(--accent); color: var(--text); }
     .btn-sm.danger:hover { border-color: var(--danger); color: var(--danger); }
 
+    .table-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border: 1px solid #2a2a30;
+      border-radius: var(--radius);
+    }
+    .table-scroll .users-table { border: none; }
+
     .loading {
       text-align: center;
       padding: 40px;
@@ -278,8 +286,11 @@
           tbody.appendChild(tr);
         }
         table.appendChild(tbody);
+        const wrap = document.createElement("div");
+        wrap.className = "table-scroll";
+        wrap.appendChild(table);
         container.innerHTML = "";
-        container.appendChild(table);
+        container.appendChild(wrap);
       } catch {
         container.innerHTML = '<p class="loading">Failed to load audit log</p>';
       }
@@ -355,8 +366,11 @@
         tbody.appendChild(tr);
       }
       table.appendChild(tbody);
+      const wrap = document.createElement("div");
+      wrap.className = "table-scroll";
+      wrap.appendChild(table);
       container.innerHTML = "";
-      container.appendChild(table);
+      container.appendChild(wrap);
     }
 
     async function toggleFeature(userId, features, feat, value) {

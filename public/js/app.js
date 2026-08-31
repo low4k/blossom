@@ -495,10 +495,12 @@ function renderGamesGrid(query, tag) {
     const fav = document.createElement("button");
     fav.className = `game-fav${isFavorite(game.id) ? " active" : ""}`;
     fav.textContent = "★";
+    fav.setAttribute("aria-label", `${isFavorite(game.id) ? "Unfavorite" : "Favorite"} ${game.name}`);
     fav.addEventListener("click", (e) => {
       e.stopPropagation();
       toggleFavorite(game.id);
       fav.classList.toggle("active");
+      fav.setAttribute("aria-label", `${isFavorite(game.id) ? "Unfavorite" : "Favorite"} ${game.name}`);
     });
 
     card.appendChild(thumb);
@@ -621,6 +623,7 @@ function createListItem(title, url, time, onClick, onRemove) {
     const removeBtn = document.createElement("button");
     removeBtn.className = "list-item-remove";
     removeBtn.textContent = "✕";
+    removeBtn.setAttribute("aria-label", `Remove ${title}`);
     removeBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       onRemove();
