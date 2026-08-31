@@ -299,6 +299,12 @@ export function addUserHistory(userId, url, title) {
   db.prepare(
     "INSERT INTO history (user_id, url, title) VALUES (?, ?, ?)"
   ).run(userId, url, title || "");
+
+  // Keep history bounded per user: prune beyond the last 400 entries so the
+  // table can't grow without limit as users browse.
+  db.prepare(
+    "DELETE FROM history WHERE user_id = ? AND id NOT IN (SELECT id FROM history WHERE user_id = ? ORDER BY visited_at DESC, id DESC LIMIT 400)"
+  ).run(userId, userId);
 }
 
 export function clearUserHistory(userId) {

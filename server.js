@@ -94,6 +94,11 @@ app.use((req, res, next) => {
   const publicPaths = ["/styles.css", "/login.html", "/diag.html", "/manifest.webmanifest", "/icon.svg"];
   if (publicPaths.some((p) => req.path === p)) return next();
 
+  // Terminate common engine/probe paths immediately (before the auth gate) so
+  // scanners get a clean 404 instead of a login redirect or SPA fallback.
+  const PROBES = new Set(["/favicon.ico", "/robots.txt", "/.env", "/server.js", "/package.json", "/package-lock.json", "/.git/config", "/.htaccess"]);
+  if (PROBES.has(req.path)) return res.status(404).end();
+
   if (req.path.startsWith(config.proxyPrefix) || req.path.startsWith(config.epoxyPrefix) || req.path.startsWith(config.baremuxPrefix)) {
     return next();
   }
@@ -228,6 +233,11 @@ app.use(config.baremuxPrefix, express.static(baremuxPath, {
 }));
 
 app.use(express.static(publicPath));
+
+// Unknown /api/* and /admin/api/* routes: 404 JSON, not the index.html SPA
+// fallback. Keeps API consumers (and API crawlers) from getting HTML back.
+app.use("/api", (_req, res) => res.status(404).json({ error: "Not found" }));
+app.use("/admin/api", (_req, res) => res.status(404).json({ error: "Not found" }));
 
 app.get("*", (req, res) => {
   res.sendFile(path.join(publicPath, "index.html"));

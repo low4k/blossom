@@ -22,7 +22,7 @@ const config = {
 
   rateLimit: {
     windowMs: 60 * 1000,
-    max: 300,
+    max: 1200,
     standardHeaders: true,
     legacyHeaders: false,
   },
