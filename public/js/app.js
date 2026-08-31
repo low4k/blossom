@@ -481,18 +481,37 @@ function renderGamesGrid(query, tag) {
     card.className = "game-card";
     card.style.position = "relative";
 
-    const thumb = document.createElement("img");
-    thumb.className = "game-thumb";
-    thumb.src = game.thumb || "";
-    thumb.alt = game.name;
-    thumb.loading = "lazy";
-    thumb.onerror = () => { thumb.style.display = "none"; };
+    // Thumbnail with emoji fallback (CSS expects .game-card-thumb 16/10 box)
+    const thumbWrap = document.createElement("div");
+    thumbWrap.className = "game-card-thumb";
+    if (game.thumb) {
+      const thumb = document.createElement("img");
+      thumb.src = game.thumb;
+      thumb.alt = "";
+      thumb.loading = "lazy";
+      thumb.onerror = () => {
+        thumb.remove();
+        thumbWrap.textContent = game.icon || "🎮";
+      };
+      thumbWrap.appendChild(thumb);
+    } else {
+      thumbWrap.textContent = game.icon || "🎮";
+    }
 
+    const info = document.createElement("div");
+    info.className = "game-card-info";
     const name = document.createElement("div");
-    name.className = "game-name";
+    name.className = "game-card-name";
     name.textContent = game.name;
+    info.appendChild(name);
+    if (game.tags?.length) {
+      const tags = document.createElement("div");
+      tags.className = "game-card-tags";
+      tags.textContent = game.tags.slice(0, 3).join(" · ");
+      info.appendChild(tags);
+    }
 
-    const fav = document.createElement("button");
+        const fav = document.createElement("button");
     fav.className = `game-fav${isFavorite(game.id) ? " active" : ""}`;
     fav.textContent = "★";
     fav.setAttribute("aria-label", `${isFavorite(game.id) ? "Unfavorite" : "Favorite"} ${game.name}`);
@@ -503,8 +522,8 @@ function renderGamesGrid(query, tag) {
       fav.setAttribute("aria-label", `${isFavorite(game.id) ? "Unfavorite" : "Favorite"} ${game.name}`);
     });
 
-    card.appendChild(thumb);
-    card.appendChild(name);
+    card.appendChild(thumbWrap);
+    card.appendChild(info);
     card.appendChild(fav);
 
     card.addEventListener("click", () => {
