@@ -1,6 +1,6 @@
 
-app = 'blossom-cold-cloud-8187'
-primary_region = 'iad'
+app = 'blossom-nowvdq'
+primary_region = 'ams'
 
 [build]
   dockerfile = "Dockerfile"
@@ -27,8 +27,8 @@ primary_region = 'iad'
   cpus = 1
 
 # Persistent volume for the SQLite DB (data/blossom.db).
-# Create it BEFORE deploying:  fly volumes create blossom_data --size 1 --region iad
-# Then uncomment the section below, or every deploy/restart wipes user data.
-# [[mounts]]
-#   source = "blossom_data"
-#   destination = "/app/data"
+# Created via: fly volumes create blossom_data -a blossom-nowvdq --region ams --size 1
+# Keeps accounts, sessions, bookmarks and history across deploys/restarts.
+[[mounts]]
+  source = "blossom_data"
+  destination = "/app/data"
