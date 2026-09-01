@@ -22,3 +22,7 @@ pw.txt
 pw_install.txt
 setup.txt
 boot.txt
+fly_token.txt
+fly_auth_out.txt
+fly_auth_err.txt
+fly_install.ps1
