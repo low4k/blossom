@@ -8,6 +8,7 @@ import {
   validateSession,
   deleteSession,
 } from "./db.js";
+import { verifyTotp } from "./totp.js";
 
 const router = Router();
 
@@ -49,8 +50,11 @@ router.post("/register", (req, res) => {
     return res.status(400).json({ error: "Invalid email format" });
   }
 
-  if (password.length < 6) {
-    return res.status(400).json({ error: "Password must be at least 6 characters" });
+  if (password.length < 8) {
+    return res.status(400).json({ error: "Password must be at least 8 characters" });
+  }
+  if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+    return res.status(400).json({ error: "Password must contain at least one letter and one number" });
   }
 
   const result = createUser(email, password, displayName);
@@ -76,7 +80,7 @@ router.post("/register", (req, res) => {
 });
 
 router.post("/login", (req, res) => {
-  const { email, password } = req.body || {};
+  const { email, password, totp } = req.body || {};
 
   if (!email || !password) {
     return res.status(400).json({ error: "Email and password are required" });
@@ -85,6 +89,16 @@ router.post("/login", (req, res) => {
   const user = authenticateUser(email, password);
   if (!user) {
     return res.status(401).json({ error: "Invalid email or password" });
+  }
+
+  // 2FA: when enabled, a valid TOTP code is required on top of the password.
+  if (user.totpEnabled) {
+    if (!totp) {
+      return res.status(401).json({ error: "2FA code required", totpRequired: true });
+    }
+    if (!verifyTotp(user.totpSecret, totp)) {
+      return res.status(401).json({ error: "Invalid 2FA code", totpRequired: true });
+    }
   }
 
   const session = createSession(user.id);

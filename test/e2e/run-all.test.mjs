@@ -10,6 +10,7 @@ const suites = [
   "iter3-settings-games.test.mjs",
   "iter4-admin-pwa-reg.test.mjs",
   "iter5-responsive-a11y.test.mjs",
+  "iter6-totp.test.mjs",
 ];
 
 let totalFailed = 0;

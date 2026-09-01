@@ -77,6 +77,18 @@ db.exec(`
   );
 `);
 
+// 2FA columns (safe to re-run: duplicate-column errors are expected/ignored)
+for (const stmt of [
+  "ALTER TABLE users ADD COLUMN totp_secret TEXT",
+  "ALTER TABLE users ADD COLUMN totp_enabled INTEGER NOT NULL DEFAULT 0",
+]) {
+  try {
+    db.exec(stmt);
+  } catch (e) {
+    if (!/duplicate column/i.test(String(e.message))) throw e;
+  }
+}
+
 const DEFAULT_FEATURES = {
   proxy: true,
   games: true,
@@ -145,6 +157,8 @@ export function authenticateUser(email, password) {
     displayName: user.display_name,
     role: user.role,
     features: JSON.parse(user.features),
+    totpEnabled: !!user.totp_enabled,
+    totpSecret: user.totp_secret || null,
   };
 }
 
@@ -255,6 +269,23 @@ export function deleteUser(userId) {
 
 export function getUserCount() {
   return db.prepare("SELECT COUNT(*) as count FROM users").get().count;
+}
+
+export function setTotpSecret(userId, secret) {
+  db.prepare("UPDATE users SET totp_secret = ?, totp_enabled = 0 WHERE id = ?").run(secret, userId);
+}
+
+export function enableTotp(userId) {
+  db.prepare("UPDATE users SET totp_enabled = 1 WHERE id = ?").run(userId);
+}
+
+export function disableTotp(userId) {
+  db.prepare("UPDATE users SET totp_secret = NULL, totp_enabled = 0 WHERE id = ?").run(userId);
+}
+
+export function getTotpState(userId) {
+  const u = db.prepare("SELECT totp_secret, totp_enabled FROM users WHERE id = ?").get(userId);
+  return u ? { secret: u.totp_secret || null, enabled: !!u.totp_enabled } : { secret: null, enabled: false };
 }
 
 export function getActiveSessionCount() {

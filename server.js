@@ -55,6 +55,9 @@ app.use(helmet({
 app.use((_req, res, next) => {
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
   res.setHeader("Cross-Origin-Embedder-Policy", "credentialless");
+  // Permissions-Policy: block features the app doesn't use (a proxy iframe
+  // loading arbitrary sites shouldn't inherit camera/mic/geolocation/etc.)
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=(), accelerometer=(), gyroscope=(), magnetometer=()");
   next();
 });
 
@@ -243,9 +246,25 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(publicPath, "index.html"));
 });
 
-app.use((err, _req, res, _next) => {
+app.use((err, req, res, _next) => {
   console.error("\x1b[31m[Error]\x1b[0m", err.stack || err.message || err);
-  res.status(500).json({ error: "Internal server error" });
+  // Don't leak stack traces to clients in production.
+  const wantsJson = req.headers.accept?.includes("application/json") || req.path.startsWith("/api/") || req.path.startsWith("/admin/api");
+  if (wantsJson) {
+    return res.status(500).json({ error: "Internal server error" });
+  }
+  res.status(500).send(
+    `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Something went wrong</title>
+    <style>
+      body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0d0d0f;color:#e8e8ed;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:24px;text-align:center}
+      .box{max-width:420px}
+      h1{font-size:28px;margin:0 0 8px}
+      p{color:#8888a0;line-height:1.5;margin:0 0 24px}
+      a{display:inline-block;background:#e8a0bf;color:#1a1020;text-decoration:none;font-weight:600;padding:10px 18px;border-radius:10px}
+    </style></head>
+    <body><div class="box"><h1>500</h1><p>Something went wrong on our end. Please try again.</p><a href="/">Go Home</a></div></body></html>`
+  );
 });
 
 const server = createServer(app);
