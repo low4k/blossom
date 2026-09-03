@@ -94,7 +94,7 @@ function wantsJson(req) {
 
 app.use((req, res, next) => {
 
-  const publicPaths = ["/styles.css", "/login.html", "/diag.html", "/manifest.webmanifest", "/icon.svg"];
+  const publicPaths = ["/styles.css", "/login.html", "/diag.html", "/manifest.webmanifest", "/icon.svg", "/js/petals.js", "/branch.svg"];
   if (publicPaths.some((p) => req.path === p)) return next();
 
   // Terminate common engine/probe paths immediately (before the auth gate) so

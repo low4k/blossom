@@ -25,7 +25,9 @@ await step("security", "no account seeded when DEV_EMAIL/DEV_PASS unset", async 
     const { spawn } = await import("node:child_process");
     child = spawn("node", ["server.js"], {
       cwd: ROOT,
-      env: { ...process.env, PORT: "8124", DEV_EMAIL: "", DEV_PASS: "" },
+      // Neutralise DB_PATH too: this step must exercise the DEFAULT data/
+      // location, not inherit whatever DB_PATH the ambient shell may export.
+      env: { ...process.env, PORT: "8124", DEV_EMAIL: "", DEV_PASS: "", DB_PATH: "" },
       stdio: "ignore",
     });
     const base2 = "http://localhost:8124";
@@ -51,8 +53,16 @@ await step("security", "no account seeded when DEV_EMAIL/DEV_PASS unset", async 
     record("security", "fresh DB has zero accounts (no fallback seed)", devCount === 0 && totalCount === 0, `users=${totalCount}, devs=${devCount}`);
   } finally {
     child?.kill();
-    await new Promise((r) => setTimeout(r, 500));
-    fs.rmSync(path.join(ROOT, "data"), { recursive: true, force: true });
+    // On Windows, a killed child can keep the SQLite file handle open briefly;
+    // retry the removal (with backoff) so the restore below never half-fails.
+    for (let attempt = 0; attempt < 20; attempt++) {
+      try {
+        fs.rmSync(dataDir, { recursive: true, force: true });
+        break;
+      } catch {
+        await new Promise((r) => setTimeout(r, 500));
+      }
+    }
     if (hadDb) fs.renameSync(backup, dataDir);
   }
 });

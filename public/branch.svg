@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <defs>
+    <g id="bloom">
+      <g fill="#ffb7d5">
+        <ellipse cx="0" cy="-9" rx="5" ry="8"/>
+        <ellipse cx="0" cy="-9" rx="5" ry="8" transform="rotate(72)"/>
+        <ellipse cx="0" cy="-9" rx="5" ry="8" transform="rotate(144)"/>
+        <ellipse cx="0" cy="-9" rx="5" ry="8" transform="rotate(216)"/>
+        <ellipse cx="0" cy="-9" rx="5" ry="8" transform="rotate(288)"/>
+      </g>
+      <circle r="2.6" fill="#e85d96"/>
+      <g fill="#ffd9e8">
+        <circle cx="0" cy="-3.4" r="0.9"/>
+        <circle cx="3" cy="1.4" r="0.9"/>
+        <circle cx="-3" cy="1.4" r="0.9"/>
+      </g>
+    </g>
+  </defs>
+
+  <!-- branch silhouette -->
+  <g stroke="#4a2138" fill="none" stroke-linecap="round">
+    <path d="M-10 312 C 70 268, 140 224, 205 162 C 248 120, 296 58, 336 -8" stroke-width="9"/>
+    <path d="M205 162 C 238 152, 276 152, 312 128" stroke-width="5.5"/>
+    <path d="M150 222 C 182 234, 218 246, 248 276" stroke-width="4.5"/>
+    <path d="M205 162 C 196 190, 192 214, 196 240" stroke-width="4"/>
+  </g>
+
+  <!-- blossoms along the branch -->
+  <use href="#bloom" transform="translate(336 6) scale(1.15) rotate(20)"/>
+  <use href="#bloom" transform="translate(296 60) scale(0.95) rotate(-30)"/>
+  <use href="#bloom" transform="translate(312 128) scale(1.05) rotate(55)"/>
+  <use href="#bloom" transform="translate(205 162) scale(1.2) rotate(10)"/>
+  <use href="#bloom" transform="translate(248 276) scale(0.9) rotate(-15)"/>
+  <use href="#bloom" transform="translate(150 222) scale(0.85) rotate(40)"/>
+  <use href="#bloom" transform="translate(250 108) scale(0.7) rotate(-60)"/>
+
+  <!-- drifting petals -->
+  <g fill="#ffb7d5" opacity="0.8">
+    <ellipse cx="120" cy="120" rx="3" ry="5" transform="rotate(35 120 120)"/>
+    <ellipse cx="260" cy="200" rx="2.6" ry="4.4" transform="rotate(-25 260 200)"/>
+    <ellipse cx="60" cy="180" rx="2.4" ry="4" transform="rotate(60 60 180)"/>
+    <ellipse cx="330" cy="230" rx="2.8" ry="4.6" transform="rotate(-45 330 230)"/>
+  </g>
+</svg>
