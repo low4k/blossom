@@ -275,13 +275,35 @@ async function captureCookies(target) {
   for (const c of snap) {
     try { await seedJar(c, target.href); } catch {}
   }
-  try {
-    await fetch(`/api/captcha/vault/${encodeURIComponent(target.hostname)}`, {
+  queueVaultPost(target.hostname, snap);
+}
+
+// Busy sites (Google) rewrite cookies on nearly every response; throttle the
+// vault POSTs to one flush per host per 2.5s, trailing with the newest state.
+const vaultPostAt = new Map();     // host -> ts of last POST
+const vaultFlushTimer = new Map(); // host -> pending timeout id
+const vaultPending = new Map();    // host -> newest snapshot queued
+function queueVaultPost(host, snap) {
+  vaultPending.set(host, snap);
+  const flush = () => {
+    vaultFlushTimer.delete(host);
+    const pending = vaultPending.get(host);
+    if (!pending) return;
+    fetch(`/api/captcha/vault/${encodeURIComponent(host)}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cookies: snap, merge: true }),
-    });
-  } catch {}
+      body: JSON.stringify({ cookies: pending, merge: true }),
+    })
+      .then(() => {
+        if (vaultPending.get(host) === pending) vaultPending.delete(host);
+        vaultPostAt.set(host, Date.now());
+      })
+      .catch(() => {});
+  };
+  const wait = 2500 - (Date.now() - (vaultPostAt.get(host) || 0));
+  if (wait <= 0) { flush(); return; }
+  if (vaultFlushTimer.has(host)) return; // trailing flush already armed
+  vaultFlushTimer.set(host, setTimeout(flush, wait));
 }
 
 function decodeTarget(url, origin) {

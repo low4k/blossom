@@ -132,7 +132,7 @@ await step("search", "resolveInput: search term / bare domain / full URL", async
     };
   });
   const ok =
-    res.searchTerm === "https://www.google.com/search?q=" + encodeURIComponent("cute cats") &&
+    res.searchTerm === "https://duckduckgo.com/?q=" + encodeURIComponent("cute cats") &&
     res.bareDomain === "https://example.com/" &&
     res.fullUrl === "https://example.com/page?a=1" &&
     res.empty === null;

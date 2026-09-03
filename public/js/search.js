@@ -1,6 +1,8 @@
 
 
-let searchTemplate = localStorage.getItem("blossom-search-engine") || "https://www.google.com/search?q=%s";
+// DuckDuckGo renders cleanly through the proxy; Google's JS shell currently
+// stalls under scramjet-alpha (kept as an opt-in choice).
+let searchTemplate = localStorage.getItem("blossom-search-engine") || "https://duckduckgo.com/?q=%s";
 
 export function setSearchEngine(template) {
   searchTemplate = template;
