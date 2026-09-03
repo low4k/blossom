@@ -104,6 +104,7 @@ async function init() {
   wireProxyToolbar();
   wireLogoClick();
   wireAccount();
+  wireTheme();
 
   checkHealth();
 
@@ -260,6 +261,7 @@ async function navigateTo(url) {
   const homeView = document.getElementById("home-view");
   homeView.style.display = "none";
   proxyActive = true;
+  document.body.classList.add("proxying");
 
   const frame = scramjet.createFrame();
   frame.frame.id = "proxy-frame";
@@ -279,16 +281,16 @@ async function navigateTo(url) {
     try {
       const title = frame.frame.contentDocument?.title;
       if (title) {
-        document.title = title + " \u2014 Blossom";
+        document.title = title + " \u00b7 Blossom";
         updateHistoryTitle(e.url, title);
       } else {
         const hostname = new URL(e.url).hostname.replace("www.", "");
-        document.title = hostname + " \u2014 Blossom";
+        document.title = hostname + " \u00b7 Blossom";
       }
     } catch {
       try {
         const hostname = new URL(e.url).hostname.replace("www.", "");
-        document.title = hostname + " \u2014 Blossom";
+        document.title = hostname + " \u00b7 Blossom";
       } catch {}
     }
   });
@@ -356,6 +358,7 @@ function goHome() {
   loadingOverlay.hidden = true;
   if (expandBtn) expandBtn.hidden = true;
   proxyActive = false;
+  document.body.classList.remove("proxying");
   scramjetFrame = null;
   currentProxyUrl = "";
 
@@ -787,11 +790,27 @@ function wireLogoClick() {
 }
 
 function wireAccount() {
+  const logoutModal = document.getElementById("logout-modal");
+  const openLogout = () => { if (logoutModal) logoutModal.hidden = false; };
+  const closeLogout = () => { if (logoutModal) logoutModal.hidden = true; };
+  const performLogout = async () => {
+    await fetch("/auth/logout", { method: "POST" });
+    window.location.replace("/login");
+  };
+
   const logoutBtn = document.getElementById("btn-logout");
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", async () => {
-      await fetch("/auth/logout", { method: "POST" });
-      window.location.replace("/login");
+  if (logoutBtn) logoutBtn.addEventListener("click", openLogout);
+  const settingsLogout = document.getElementById("setting-logout");
+  if (settingsLogout) settingsLogout.addEventListener("click", openLogout);
+
+  const confirmBtn = document.getElementById("logout-confirm");
+  if (confirmBtn) confirmBtn.addEventListener("click", performLogout);
+  const cancelBtn = document.getElementById("logout-cancel");
+  if (cancelBtn) cancelBtn.addEventListener("click", closeLogout);
+  if (logoutModal) {
+    logoutModal.addEventListener("click", (e) => { if (e.target === logoutModal) closeLogout(); });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !logoutModal.hidden) closeLogout();
     });
   }
 
@@ -806,13 +825,18 @@ function wireAccount() {
   if (settingsEmail && currentUser) {
     settingsEmail.textContent = currentUser.displayName;
   }
-  const settingsLogout = document.getElementById("setting-logout");
-  if (settingsLogout) {
-    settingsLogout.addEventListener("click", async () => {
-      await fetch("/auth/logout", { method: "POST" });
-      window.location.replace("/login");
-    });
-  }
+}
+
+function wireTheme() {
+  const btn = document.getElementById("btn-theme");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    const root = document.documentElement;
+    const next = root.dataset.theme === "dark" ? "light" : "dark";
+    root.dataset.theme = next;
+    try { localStorage.setItem("blossom-theme", next); } catch {}
+    window.dispatchEvent(new Event("blossom:theme"));
+  });
 }
 
 async function checkHealth() {

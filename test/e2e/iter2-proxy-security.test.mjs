@@ -213,6 +213,9 @@ await step("bookmarks", "bookmark via toolbar, persists across reload and re-log
   await page.waitForTimeout(6000);
   await page.click("#proxy-bookmark");
   await page.waitForTimeout(800);
+  // The topbar is hidden while browsing; go home to reach the bookmarks panel.
+  await page.click("#proxy-home");
+  await page.waitForTimeout(600);
   await page.click("#btn-bookmarks");
   await page.waitForTimeout(500);
   const panelState = await page.evaluate(() => document.getElementById("bookmarks-list").innerText.slice(0, 200));
@@ -244,6 +247,12 @@ await step("history", "history records visit, clear empties client+server", asyn
   // Close any open side panel (Escape) first — an open panel covers the toolbar
   await page.keyboard.press("Escape");
   await page.waitForTimeout(300);
+  // If still browsing (chrome hidden while proxying), go home first.
+  const stillProxying = await page.evaluate(() => document.body.classList.contains("proxying"));
+  if (stillProxying) {
+    await page.click("#proxy-home");
+    await page.waitForTimeout(600);
+  }
   await page.click("#btn-history");
   await page.waitForTimeout(500);
   const hist = await page.evaluate(() => document.getElementById("history-list").innerText.slice(0, 300));

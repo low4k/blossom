@@ -2,15 +2,43 @@
 // transforms only), low density, disabled under prefers-reduced-motion.
 
 const PETAL_COUNT = 18;
-const COLORS = [
-  [255, 158, 196],
-  [255, 183, 213],
-  [255, 205, 226],
-  [232, 93, 150],
-];
+
+/* Soft pastels for the dark night theme; deeper rosy tones stay visible
+   on the cream dawn theme. */
+const PALETTES = {
+  dark: {
+    colors: [
+      [255, 158, 196],
+      [255, 183, 213],
+      [255, 205, 226],
+      [232, 93, 150],
+    ],
+    alphaMin: 0.35,
+    alphaSpread: 0.4,
+  },
+  light: {
+    colors: [
+      [214, 77, 134],
+      [184, 58, 108],
+      [232, 93, 150],
+      [239, 131, 170],
+    ],
+    alphaMin: 0.5,
+    alphaSpread: 0.45,
+  },
+};
+
+function currentPalette() {
+  return document.documentElement.dataset.theme === "dark"
+    ? PALETTES.dark
+    : PALETTES.light;
+}
+
+let palette = currentPalette();
 
 function makePetal(w, h, initial) {
-  const [r, g, b] = COLORS[(Math.random() * COLORS.length) | 0];
+  const colors = palette.colors;
+  const [r, g, b] = colors[(Math.random() * colors.length) | 0];
   return {
     x: Math.random() * w,
     y: initial ? Math.random() * h : -30,
@@ -21,7 +49,7 @@ function makePetal(w, h, initial) {
     swaySpeed: 0.004 + Math.random() * 0.008,
     rot: Math.random() * Math.PI * 2,
     rotSpeed: (Math.random() - 0.5) * 0.02,
-    alpha: 0.35 + Math.random() * 0.4,
+    alpha: palette.alphaMin + Math.random() * palette.alphaSpread,
     color: `rgba(${r},${g},${b},`,
   };
 }
@@ -48,21 +76,26 @@ function drawPetal(ctx, p) {
 
 export function initPetals() {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  if (document.getElementById("petal-canvas")) return;
 
-  const canvas = document.createElement("canvas");
-  canvas.id = "petal-canvas";
-  canvas.setAttribute("aria-hidden", "true");
-  // Critical layout/interaction styles are set here in JS so the layer never
-  // intercepts pointer events or distorts the layout on pages that don't link
-  // styles.css (e.g. the login page, which has its own inline stylesheet).
-  Object.assign(canvas.style, {
-    position: "fixed",
-    inset: "0",
-    zIndex: "3",
-    pointerEvents: "none",
-  });
-  document.body.appendChild(canvas);
+  // Reuse a statically declared canvas (index.html) or create one (login).
+  let canvas = document.getElementById("petal-canvas");
+  if (canvas && canvas.dataset.petalsLive === "1") return; // already running
+  if (!canvas) {
+    canvas = document.createElement("canvas");
+    canvas.id = "petal-canvas";
+    canvas.setAttribute("aria-hidden", "true");
+    // Critical layout/interaction styles are set here in JS so the layer never
+    // intercepts pointer events or distorts the layout on pages that don't link
+    // styles.css (e.g. the login page, which has its own inline stylesheet).
+    Object.assign(canvas.style, {
+      position: "fixed",
+      inset: "0",
+      zIndex: "3",
+      pointerEvents: "none",
+    });
+    document.body.appendChild(canvas);
+  }
+  canvas.dataset.petalsLive = "1";
   const ctx = canvas.getContext("2d");
 
   let w = 0;
@@ -79,6 +112,13 @@ export function initPetals() {
   }
   resize();
   window.addEventListener("resize", resize);
+
+  // Theme flip: swap palette and reseed so petals stay readable.
+  window.addEventListener("blossom:theme", () => {
+    palette = currentPalette();
+    petals = [];
+    resize();
+  });
 
   // Night breeze: a gentle baseline sway plus occasional eased gusts that
   // push every petal sideways at once, so the fall feels like real wind.
