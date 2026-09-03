@@ -14,6 +14,7 @@ import config from "./config.js";
 import { healthHandler } from "./health.js";
 import { authRouter, requireAuth, COOKIE_NAME, parseCookie } from "./auth.js";
 import { adminRouter } from "./admin.js";
+import { captchaRouter, initCaptchaLayer } from "./captcha.js";
 import {
   validateSession,
   getUserBookmarks, addUserBookmark, removeUserBookmark,
@@ -171,6 +172,9 @@ app.delete("/api/bookmarks", requireAuth, (req, res) => {
 app.get("/api/history", requireAuth, (req, res) => {
   res.json(getUserHistory(req.user.id));
 });
+
+// Anti-CAPTCHA vault + visibility endpoints
+app.use("/api/captcha", requireAuth, captchaRouter);
 app.post("/api/history", requireAuth, (req, res) => {
   const { url, title } = req.body || {};
   if (!validStoredUrl(url)) return res.status(400).json({ error: "A valid http(s) url is required" });
@@ -206,6 +210,7 @@ app.get("/blossom-config.json", (req, res) => {
     version: config.version,
     defaultCloak: config.defaultCloak,
     defaultPanicUrl: config.defaultPanicUrl,
+    captchaWatchHosts: config.captcha.watchHosts,
     user: req.user ? {
       id: req.user.id,
       displayName: req.user.displayName,
@@ -281,6 +286,7 @@ server.on("upgrade", (req, socket, head) => {
 
 const port = config.port;
 server.listen(port, "0.0.0.0", () => {
+  initCaptchaLayer();
   console.log(`\n  Blossom is running`);
   console.log(`     http://localhost:${port}`);
   console.log(`     Wisp endpoint:    ${config.wispPath}`);

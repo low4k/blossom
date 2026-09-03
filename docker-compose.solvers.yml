@@ -1,0 +1,31 @@
+# OPTIONAL composite for anti-CAPTCHA sidecars. Not required to run Blossom.
+#   docker compose -f docker-compose.yml -f docker-compose.solvers.yml up
+#
+# These sidecars must be provided BY YOU (open-source only, AGPL-compatible):
+#
+#   1. stealth: an HTTP CONNECT proxy fronting a uTLS (QTLS/utls) or
+#      curl-impersonate build. uTLS writes real Chrome ClientHello bytes.
+#      Example images (arch/community, self-audit first):
+#         ghcr.io/qtfy/curl-impersonate-chrome? (CONNECT-capable wrapper)
+#
+#      This repo intentionally does not vendor one. Blossom expects:
+#         STEALTH_PROXY_URL=http://stealth:8888
+#
+#   2. solver: an HTTP service implementing the contract:
+#         POST /solve
+#           body:   { "host": "google.com", "url": "https://www.google.com/sorry/index", "cookies": [ { "name": "...", "value": "...", "domain": "..." } ] }
+#           reply:  { "cookies": [ ... same shape ... ] }
+#      Set SOLVER_URL=http://solver:3010 to enable Blossom to hand off
+#      challenge refreshes. Camoufox / Turnstile-Solver style builds work.
+#
+#   3. audio + image models for a solver — keep them inside YOUR solver image.
+#      faster-whisper: MIT; Whisper weights: MIT. CLIP: MIT. Do not vendor
+#      them into Blossom proper (AGPL project stays clean).
+#
+# services:
+#   stealth:
+#     image: your-utls-connect-image
+#     restart: unless-stopped
+#   solver:
+#     image: your-camoufox-solver-image
+#     restart: unless-stopped

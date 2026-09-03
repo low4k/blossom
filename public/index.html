@@ -262,6 +262,13 @@
         </div>
         <hr />
         <div class="setting-group">
+          <label>Site Sessions</label>
+          <p class="setting-hint" id="vault-status">Checking…</p>
+          <p class="setting-hint">When a site checks that you're human, Blossom saves the session so you are not asked again.</p>
+          <button id="vault-clear" class="btn btn-secondary">Forget saved sessions</button>
+        </div>
+        <hr />
+        <div class="setting-group">
           <label>Account</label>
           <p class="setting-hint" id="settings-user-email"></p>
           <button id="setting-logout" class="btn btn-secondary">Sign Out</button>
@@ -281,7 +288,7 @@
     </div>
 
     <div id="captcha-toast" class="toast" hidden>
-      Solving a CAPTCHA? Complete it slowly, since the page can sometimes loop if you go too fast.
+      <span id="captcha-toast-text">Solving a CAPTCHA? Complete it slowly, since the page can sometimes loop if you go too fast.</span>
       <button class="toast-close" data-dismiss="captcha-toast" aria-label="Dismiss notice">✕</button>
     </div>
 

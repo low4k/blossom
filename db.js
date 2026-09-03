@@ -75,6 +75,25 @@ db.exec(`
     details TEXT NOT NULL DEFAULT '',
     created_at INTEGER NOT NULL DEFAULT (unixepoch())
   );
+
+  -- Anti-CAPTCHA session vault: scramjet cookie-store objects per watched
+  -- host, restored into the SW jar after IDB purges / new devices.
+  CREATE TABLE IF NOT EXISTS cookie_vault (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    host TEXT NOT NULL,
+    cookies TEXT NOT NULL DEFAULT '[]',
+    updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+    PRIMARY KEY (user_id, host)
+  );
+
+  CREATE TABLE IF NOT EXISTS captcha_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    host TEXT NOT NULL DEFAULT '',
+    kind TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+  CREATE INDEX IF NOT EXISTS idx_captcha_events_user ON captcha_events(user_id, created_at);
 `);
 
 // 2FA columns (safe to re-run: duplicate-column errors are expected/ignored)
@@ -340,6 +359,82 @@ export function addUserHistory(userId, url, title) {
 
 export function clearUserHistory(userId) {
   db.prepare("DELETE FROM history WHERE user_id = ?").run(userId);
+}
+
+// ---- Anti-CAPTCHA cookie vault ----
+
+const VAULT_TTL = 30 * 24 * 60 * 60; // vault entries older than 30d are dropped
+
+export function saveVaultCookies(userId, host, cookiesJson) {
+  db.prepare(
+    `INSERT INTO cookie_vault (user_id, host, cookies, updated_at) VALUES (?, ?, ?, unixepoch())
+     ON CONFLICT(user_id, host) DO UPDATE SET cookies = excluded.cookies, updated_at = unixepoch()`
+  ).run(userId, host, cookiesJson);
+}
+
+export function getVaultCookies(userId, host) {
+  const row = db.prepare(
+    "SELECT cookies, updated_at FROM cookie_vault WHERE user_id = ? AND host = ?"
+  ).get(userId, host);
+  return row || null;
+}
+
+export function getVaultHosts(userId) {
+  const rows = db.prepare(
+    `SELECT host, cookies, updated_at FROM cookie_vault
+     WHERE user_id = ? AND updated_at > unixepoch() - ? ORDER BY updated_at DESC`
+  ).all(userId, VAULT_TTL);
+  return rows.map((r) => ({
+    host: r.host,
+    cookieCount: JSON.parse(r.cookies).length,
+    updatedAt: r.updated_at,
+  }));
+}
+
+export function getUserVaultCookies(userId, hosts = null) {
+  const rows = db.prepare(
+    `SELECT host, cookies FROM cookie_vault
+     WHERE user_id = ? AND updated_at > unixepoch() - ?`
+  ).all(userId, VAULT_TTL);
+  const out = {};
+  for (const r of rows) {
+    if (hosts && !hosts.includes(r.host)) continue;
+    out[r.host] = JSON.parse(r.cookies);
+  }
+  return out;
+}
+
+export function deleteVaultCookies(userId, host) {
+  db.prepare("DELETE FROM cookie_vault WHERE user_id = ? AND host = ?").run(userId, host);
+}
+
+export function clearUserVault(userId) {
+  db.prepare("DELETE FROM cookie_vault WHERE user_id = ?").run(userId);
+}
+
+export function recordCaptchaEvent(userId, host, kind) {
+  db.prepare(
+    "INSERT INTO captcha_events (user_id, host, kind) VALUES (?, ?, ?)"
+  ).run(userId, host, kind);
+  // bound the log: keep the newest 1000 events per user
+  db.prepare(
+    "DELETE FROM captcha_events WHERE user_id = ? AND id NOT IN (SELECT id FROM captcha_events WHERE user_id = ? ORDER BY id DESC LIMIT 1000)"
+  ).run(userId, userId);
+}
+
+// All users' vault rows touched within the window (drives the keep-alive loop).
+export function getRecentVaultRows(maxAgeSeconds = 24 * 60 * 60) {
+  return db.prepare(
+    `SELECT user_id, host, cookies, updated_at FROM cookie_vault
+     WHERE updated_at > unixepoch() - ?`
+  ).all(maxAgeSeconds);
+}
+
+export function getCaptchaEventStats(userId) {
+  return db.prepare(
+    `SELECT host, kind, COUNT(*) AS count, MAX(created_at) AS last_at
+     FROM captcha_events WHERE user_id = ? GROUP BY host, kind ORDER BY last_at DESC`
+  ).all(userId);
 }
 
 export function updateUserHistoryTitle(userId, url, title) {

@@ -49,8 +49,62 @@ All configuration is via environment variables. Copy [.env.example](.env.example
 | `MIRRORS` | - | Comma-separated mirror URLs for domain survival failover |
 | `REGISTRATION` | `open` | Set to `closed` to disable self-registration |
 | `INVITE_CODE` | - | If set, registration requires this code |
+| `CAPTCHA_WATCH_HOSTS` | `google.com,reddit.com,recaptcha.net,hcaptcha.com,challenges.cloudflare.com` | Hosts whose cookies are vaulted. Subdomains match; `host:port` allowed for testing |
+| `CAPTCHA_REFRESH_SECONDS` | `300` | Keep-alive probe interval per vault entry (0 = off) |
+| `STEALTH_PROXY_URL` | - | Optional CONNECT proxy for keep-alive egress (uTLS sidecar) |
+| `SOLVER_URL` | - | Optional open-source solver sidecar base URL (see below) |
+| `SOLVER_TIMEOUT_MS` | `45000` | Max wait for the solver sidecar |
 
 Change the path prefixes on every deployment so filters can't pattern-match.
+
+## Anti-CAPTCHA middleware
+
+Blossom includes a CAPTCHA anti-loop layer aimed at Google "unusual traffic"
+interstitials, reCAPTCHA, Cloudflare Turnstile and Reddit-style challenges.
+
+**Phase 1 (on by default) — session vault.** When a watched site sets cookies
+during a challenge, Scramjet's in-page jar keeps them but loses them when the
+service-worker database is purged (deploys, new devices, private browsing).
+The middleware now:
+
+- captures the jar entries for watched hosts after every proxied response and
+  persists them per-account in `cookie_vault` (SQLite),
+- re-seeds the Scramjet jar right after login/server version changes, before
+  any proxied navigation, so a solved challenge stays solved,
+- runs a server-side keep-alive: every `CAPTCHA_REFRESH_SECONDS` it pings a
+  benign endpoint (e.g. Google's `generate_204`) with the stored cookies, so
+  short-lived challenge tokens (`NID` et al.) are refreshed before they lapse,
+- uses per-host circuit breakers (3 failures → 15 min cooldown) so a broken
+  target can't stall anything, and sweep expired cookies from probes.
+
+The Settings panel shows saved site sessions and a "Forget saved sessions"
+button. Detection of challenge pages posts toast guidance instead of letting
+the page spin into a loop.
+
+**Phase 2 (plumbing)** — `STEALTH_PROXY_URL` points the keep-alive probes at
+an HTTP CONNECT proxy you run yourself (e.g. a Go **uTLS** or
+**curl-impersonate** CONNECT sidecar) so those probes carry a real Chrome TLS
+fingerprint. Note that proxied browsing TLS runs in the user's browser
+(Epoxy/libcurl.wasm), so the browser-side fingerprint can only be changed by
+swapping the WASM transport — see `docker-compose.solvers.yml` notes.
+
+**Phase 3 (plumbing)** — `SOLVER_URL` accepts an external open-source solver
+(Camoufox, Turnstile-solver-style HTTP service). When set, challenge events
+are also POSTed to `${SOLVER_URL}/solve` with `{host, url, cookies}`, the
+reply `{cookies: [...]}` replaces the vault entry, and the next page load
+uses the fresh cookies. Solvers stay strictly optional and must be
+self-hosted (AGPL-compatible). A starting composition is in
+`docker-compose.solvers.yml`.
+
+### Known limitations
+
+- Free residential/community proxies are unreliable; expect dead exits.
+- Scramjet 2.0.0-alpha occasionally drops the first fresh-context request's
+  cookies while its jar hydrates; the next navigation carries them.
+- Google can still decide to challenge anything from a datacenter IP; the
+  vault reduces repeats, it cannot promise zero.
+- The audio/image auto-solvers (faster-whisper, CLIP) belong in the
+  user-configured sidecar only, never in this repo.
 
 ## Deployment
 

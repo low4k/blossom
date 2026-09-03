@@ -9,6 +9,7 @@ import { getBookmarks, addBookmark, removeBookmark, isBookmarked, syncBookmarksF
 import { getHistory, addToHistory, clearHistory, updateHistoryTitle, syncHistoryFromServer } from "./history.js";
 import { initMirrors } from "./mirrors.js";
 import { initSettings } from "./settings.js";
+import { initVaultSync } from "./vault.js";
 
 let config = {};
 let scramjet = null;
@@ -90,6 +91,12 @@ async function init() {
     console.error("[Blossom] SW registration failed:", err);
   }
 
+  // Anti-CAPTCHA vault: restore watched-host cookies into the jar, then keep
+  // syncing jar updates back to the server-side vault.
+  initVaultSync(config, {
+    onChallenge: (host, kind) => showCaptchaToast(kind),
+  }).catch(() => {});
+
   await initScramjet();
 
   await loadGames();
@@ -105,6 +112,7 @@ async function init() {
   wireLogoClick();
   wireAccount();
   wireTheme();
+  wireVaultSettings();
 
   checkHealth();
 
@@ -401,6 +409,7 @@ function wirePanels() {
 
       if (panelId === "bookmarks-panel") renderBookmarks();
       if (panelId === "history-panel") renderHistory();
+      if (panelId === "settings-panel") refreshVaultStatus();
     });
   }
 
@@ -859,8 +868,19 @@ async function checkHealth() {
   }
 }
 
-function showCaptchaToast() {
+const CAPTCHA_COPY = {
+  google: "Google wants to check you're human. Solve it once and Blossom remembers this site.",
+  reddit: "Reddit asked for a quick check. Solve it once and Blossom remembers this site.",
+  cloudflare: "Quick security check. Solve it and Blossom remembers this site.",
+  recaptcha: "Solve the CAPTCHA once. Blossom keeps the session so it stops looping.",
+  hcaptcha: "Solve the CAPTCHA once. Blossom keeps the session so it stops looping.",
+  generic: "Solving a CAPTCHA? Complete it slowly, since the page can sometimes loop if you go too fast.",
+};
+
+function showCaptchaToast(kind) {
   const toast = document.getElementById("captcha-toast");
+  const text = document.getElementById("captcha-toast-text");
+  if (text) text.textContent = CAPTCHA_COPY[kind] || CAPTCHA_COPY.generic;
   toast.hidden = false;
 
   const timeout = setTimeout(() => { toast.hidden = true; }, 8000);
@@ -870,6 +890,37 @@ function showCaptchaToast() {
     toast.hidden = true;
     clearTimeout(timeout);
   }, { once: true });
+}
+
+async function refreshVaultStatus() {
+  const el = document.getElementById("vault-status");
+  if (!el) return;
+  try {
+    const r = await fetch("/api/captcha/status", { headers: { Accept: "application/json" } });
+    if (!r.ok) { el.textContent = "Unavailable"; return; }
+    const s = await r.json();
+    if (!s.hosts.length) {
+      el.textContent = "None yet. Sessions are saved after you solve a check on a watched site.";
+      return;
+    }
+    el.textContent = "Saved: " + s.hosts.map((h) => `${h.host} (${h.cookieCount})`).join(", ");
+  } catch {
+    el.textContent = "Unavailable";
+  }
+}
+
+function wireVaultSettings() {
+  const clearBtn = document.getElementById("vault-clear");
+  if (!clearBtn) return;
+  clearBtn.addEventListener("click", async () => {
+    clearBtn.disabled = true;
+    try {
+      await fetch("/api/captcha/vault", { method: "DELETE" });
+    } finally {
+      clearBtn.disabled = false;
+      refreshVaultStatus();
+    }
+  });
 }
 
 function showToast(message) {

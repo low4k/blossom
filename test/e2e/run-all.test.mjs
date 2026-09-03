@@ -11,6 +11,8 @@ const suites = [
   "iter4-admin-pwa-reg.test.mjs",
   "iter5-responsive-a11y.test.mjs",
   "iter6-totp.test.mjs",
+  "iter7-captcha.test.mjs",
+  "captcha-keepalive.node.mjs",
 ];
 
 let totalFailed = 0;
