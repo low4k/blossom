@@ -80,14 +80,37 @@ export function initPetals() {
   resize();
   window.addEventListener("resize", resize);
 
-  function frame() {
+  // Night breeze: a gentle baseline sway plus occasional eased gusts that
+  // push every petal sideways at once, so the fall feels like real wind.
+  let wind = 0;
+  let nextGustAt = performance.now() + 6000 + Math.random() * 8000;
+  let gustStart = -1;
+  let gustDur = 0;
+  let gustPeak = 0;
+
+  function stepWind(now) {
+    if (now >= nextGustAt) {
+      gustStart = now;
+      gustDur = 2600 + Math.random() * 2000;
+      gustPeak = (Math.random() < 0.5 ? -1 : 1) * (1.4 + Math.random() * 2.2);
+      nextGustAt = now + 9000 + Math.random() * 14000;
+    }
+    let envelope = 0;
+    if (gustStart >= 0 && now < gustStart + gustDur) {
+      envelope = Math.sin(((now - gustStart) / gustDur) * Math.PI);
+    }
+    wind = Math.sin(now / 7000) * 0.25 + envelope * gustPeak;
+  }
+
+  function frame(now) {
+    stepWind(now);
     ctx.clearRect(0, 0, w, h);
     for (const p of petals) {
       p.y += p.speedY;
-      p.sway += p.swaySpeed;
-      p.x += Math.sin(p.sway) * p.drift * 0.6;
-      p.rot += p.rotSpeed;
-      if (p.y > h + 40 || p.x < -60 || p.x > w + 60) {
+      p.sway += p.swaySpeed * (1 + Math.abs(wind) * 0.6);
+      p.x += Math.sin(p.sway) * p.drift * 0.6 + wind * (p.size / 11);
+      p.rot += p.rotSpeed * (1 + wind * 0.4);
+      if (p.y > h + 40 || p.x < -90 || p.x > w + 90) {
         Object.assign(p, makePetal(w, h, false));
       }
       drawPetal(ctx, p);

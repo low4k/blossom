@@ -14,7 +14,8 @@
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@600&text=%E5%A4%9C%E6%A1%9C&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
@@ -41,15 +42,16 @@
 
     <main id="home-view">
       <div class="hero">
-        <h1 class="hero-title fade-up">Blossom</h1>
-        <p class="hero-sub fade-up d1">Your learning starts here.</p>
+        <div class="hero-kanji fade-up" lang="ja">夜桜</div>
+        <h1 class="hero-title" aria-label="Blossom"><span class="letter" aria-hidden="true" style="--i:0">B</span><span class="letter" aria-hidden="true" style="--i:1">l</span><span class="letter" aria-hidden="true" style="--i:2">o</span><span class="letter" aria-hidden="true" style="--i:3">s</span><span class="letter" aria-hidden="true" style="--i:4">s</span><span class="letter" aria-hidden="true" style="--i:5">o</span><span class="letter" aria-hidden="true" style="--i:6">m</span></h1>
+        <p class="hero-sub fade-up d1">Slip past the gate — bloom anywhere.</p>
         <div id="search-error" class="error-msg" hidden></div>
         <form id="search-form" autocomplete="off" class="fade-up d2">
           <div class="search-wrap">
             <input
               id="search-input"
               type="text"
-              placeholder="Search for resources..."
+              placeholder="Search the web, or paste a link…"
               spellcheck="false"
               autofocus
             />
@@ -70,7 +72,7 @@
             <span>Discord</span>
           </button>
           <button class="quick-card" data-url="https://reddit.com">
-            <span class="quick-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="var(--accent)"><circle cx="12" cy="12" r="11" fill-opacity=".12" stroke="var(--accent)" stroke-width="1"/><text x="12" y="17" font-size="14" text-anchor="middle" fill="var(--accent)" font-weight="bold">R</text></svg></span>
+            <span class="quick-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="var(--accent)"><path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0Zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701ZM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249Zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249Zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095Z"/></svg></span>
             <span>Reddit</span>
           </button>
           <button class="quick-card" data-url="https://spotify.com">
@@ -82,7 +84,7 @@
             <span>Twitter/X</span>
           </button>
           <button class="quick-card" data-url="https://instagram.com">
-            <span class="quick-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="5"/><line x1="17.5" y1="6.5" x2="17.5" y2="6.5"/></svg></span>
+            <span class="quick-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="var(--accent)"><path d="M12 0C8.74 0 8.333.015 7.053.072 5.775.132 4.905.333 4.14.63c-.789.306-1.459.717-2.126 1.384S.935 3.35.63 4.14C.333 4.905.131 5.775.072 7.053.012 8.333 0 8.74 0 12s.015 3.667.072 4.947c.06 1.277.261 2.148.558 2.913.306.788.717 1.459 1.384 2.126.667.666 1.336 1.079 2.126 1.384.766.296 1.636.499 2.913.558C8.333 23.988 8.74 24 12 24s3.667-.015 4.947-.072c1.277-.06 2.148-.262 2.913-.558.788-.306 1.459-.718 2.126-1.384.666-.667 1.079-1.335 1.384-2.126.296-.765.499-1.636.558-2.913.06-1.28.072-1.687.072-4.947s-.015-3.667-.072-4.947c-.06-1.277-.262-2.149-.558-2.913-.306-.789-.718-1.459-1.384-2.126C21.319 1.347 20.651.935 19.86.63c-.765-.297-1.636-.499-2.913-.558C15.667.012 15.26 0 12 0zm0 2.16c3.203 0 3.585.016 4.85.071 1.17.055 1.805.249 2.227.415.562.217.96.477 1.382.896.419.42.679.819.896 1.381.164.422.36 1.057.413 2.227.057 1.266.07 1.646.07 4.85s-.015 3.585-.074 4.85c-.061 1.17-.256 1.805-.421 2.227-.224.562-.479.96-.899 1.382-.419.419-.824.679-1.38.896-.42.164-1.065.36-2.235.413-1.274.057-1.649.07-4.859.07-3.211 0-3.586-.015-4.859-.074-1.171-.061-1.816-.256-2.236-.421-.569-.224-.96-.479-1.379-.899-.421-.419-.69-.824-.9-1.38-.165-.42-.359-1.065-.42-2.235-.045-1.26-.061-1.649-.061-4.844 0-3.196.016-3.586.061-4.861.061-1.17.255-1.814.42-2.234.21-.57.479-.96.9-1.381.419-.419.81-.689 1.379-.898.42-.166 1.051-.361 2.221-.421 1.275-.045 1.65-.06 4.859-.06l.045.03zm0 3.678c-3.405 0-6.162 2.76-6.162 6.162 0 3.405 2.76 6.162 6.162 6.162 3.405 0 6.162-2.76 6.162-6.162 0-3.405-2.76-6.162-6.162-6.162zM12 16c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4zm7.846-10.405c0 .795-.646 1.44-1.44 1.44-.795 0-1.44-.646-1.44-1.44 0-.794.646-1.439 1.44-1.439.793-.001 1.44.645 1.44 1.439z"/></svg></span>
             <span>Instagram</span>
           </button>
         </div>
@@ -151,7 +153,7 @@
 
     <div id="loading-overlay" hidden>
       <div class="loading-spinner"></div>
-      <p class="loading-text">Loading...</p>
+        <p class="loading-text">Gathering petals…</p>
     </div>
 
     <button id="proxy-expand" class="proxy-expand-btn" hidden title="Show toolbar">
