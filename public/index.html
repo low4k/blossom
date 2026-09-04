@@ -240,8 +240,14 @@
           </a>
           <div class="ai-header-copy">
             <h1>Blossom AI</h1>
-            <p id="ai-model-label" class="ai-pill">Blossom AI · offline</p>
+            <div class="ai-model-row">
+              <label class="sr-only" for="ai-model">Model</label>
+              <select id="ai-model" class="ai-pill ai-model" aria-label="Model"></select>
+              <button type="button" id="ai-web" class="ai-ghost" title="Ask the model to search the web when it can">Web</button>
+              <button type="button" id="ai-handoff" class="ai-ghost" title="This assistant is automated">Need a human?</button>
+            </div>
             <p id="ai-status" class="ai-status" hidden></p>
+            <p id="ai-tokens" class="ai-tokens" hidden></p>
           </div>
           <button id="ai-share" class="ai-ghost" type="button">Share</button>
           <button id="ai-export" class="ai-ghost" type="button">Export</button>
@@ -251,7 +257,7 @@
           <div class="ai-empty-orb" aria-hidden="true"></div>
           <p class="ai-empty-kicker">夜桜 · night blossom</p>
           <h2>Ask anything. It stays here.</h2>
-          <p class="ai-empty-sub">A local chat surface — no model is wired yet, so replies are a stand-in. History, copy, voice, and attachments already work on this device.</p>
+          <p class="ai-empty-sub">Pick a model, ask anything, or try a starter. Threads stay on this device. Attachments are sent with your next message.</p>
           <div id="ai-starters" class="ai-starters"></div>
         </div>
         <div id="ai-thread" class="ai-thread" hidden>
@@ -276,7 +282,7 @@
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg>
             </button>
           </div>
-          <p class="ai-disclaimer">Not connected to a model. Chats stay in this browser. Images never leave the device.</p>
+          <p class="ai-disclaimer">Replies come from the selected model through Blossom. Images stay on this device unless you send them in a message.</p>
         </form>
       </section>
       <aside id="ai-artifact" class="ai-artifact" hidden>
@@ -583,6 +589,10 @@
   <a class="gh-star" href="https://github.com/low4k/blossom" target="_blank" rel="noopener noreferrer" aria-label="Star Blossom on GitHub" title="Star Blossom on GitHub">
     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5-5.9-3.2-5.9 3.2 1.2-6.5L2.5 9.4l6.6-.9z"/></svg>
     <span>Star on GitHub</span>
+  </a>
+  <a class="donate-chip" href="/donate" aria-label="Donate to Blossom" title="Donate">
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-4.4-7-10a4 4 0 017-2 4 4 0 017 2c0 5.6-7 10-7 10z"/></svg>
+    <span>Donate</span>
   </a>
 
   <button id="ai-fab" class="ai-fab" type="button" title="Blossom AI" aria-label="Open Blossom AI">

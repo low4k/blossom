@@ -12,4 +12,7 @@ assert(config.rateLimit, "rateLimit config must exist");
 assert(config.wisp, "wisp config must exist");
 assert(Array.isArray(config.wisp.dns_servers), "dns_servers must be array");
 
+assert(Array.isArray(config.ai.models) && config.ai.models.length >= 4, "ai models must be listed");
+assert(config.ai.baseUrl, "ai baseUrl must be set");
+
 console.log(`Smoke test passed - v${config.version}`);

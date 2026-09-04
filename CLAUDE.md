@@ -41,7 +41,8 @@ It runs as a PWA with a mobile-first UI.
 
 `PORT`, `PROXY_PREFIX`, `EPOXY_PREFIX`, `BAREMUX_PREFIX`, `WISP_PATH`,
 `SCRAMJET_PREFIX`, `DNS_SERVERS`, `DEV_EMAIL`, `DEV_PASS`, `MIRRORS`,
-`REGISTRATION`, `INVITE_CODE`, `DB_PATH` (test override).
+`REGISTRATION`, `INVITE_CODE`, `DB_PATH` (test override),
+`BAI_API_KEY` / `BAI_BASE_URL` (server-only AI; never commit the key).
 
 ## Dev loop
 

@@ -37,7 +37,7 @@ export function onAiRoute(active) {
   paintAiFab();
 }
 
-export function wireAi({ showToast } = {}) {
+export function wireAi({ showToast, ai } = {}) {
   const toast = typeof showToast === "function" ? showToast : () => {};
   const form = $("ai-composer");
   const input = $("ai-input");
@@ -68,6 +68,8 @@ export function wireAi({ showToast } = {}) {
   let pending = [];
   let listening = false;
   let rec = null;
+  let abortCtl = null;
+  const MODEL_KEY = "blossom-ai-model";
 
   toggle?.addEventListener("click", () => sidebar?.classList.toggle("open"));
   collapse?.addEventListener("click", () => view?.classList.toggle("ai-nav-collapsed"));
@@ -176,6 +178,7 @@ export function wireAi({ showToast } = {}) {
         </div>
         <div class="ai-msg-body"></div>
         <div class="ai-msg-attach"></div>
+        <div class="ai-msg-cites"></div>
         <div class="ai-msg-tools"></div>
       </div>`;
     const body = row.querySelector(".ai-msg-body");
@@ -202,6 +205,16 @@ export function wireAi({ showToast } = {}) {
         chip.download = a.name || "file";
         attachWrap.appendChild(chip);
       }
+    }
+    const citeWrap = row.querySelector(".ai-msg-cites");
+    for (const c of msg.citations || []) {
+      const a = document.createElement("a");
+      a.className = "ai-cite";
+      a.href = c.url;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.textContent = c.title || c.url.replace(/^https?:\/\//, "").slice(0, 40);
+      citeWrap.appendChild(a);
     }
     const tools = row.querySelector(".ai-msg-tools");
     const addTool = (label, fn, title) => {
@@ -294,7 +307,151 @@ export function wireAi({ showToast } = {}) {
     const stop = $("ai-stop");
     if (stop) stop.hidden = !on;
     view?.classList.toggle("ai-busy", on);
-    setStatus(on ? "Generating…" : "");
+    setStatus(on ? ( $("ai-web")?.classList.contains("on") ? "Searching…" : "Generating…" ) : "");
+  }
+
+  function selectedModel() {
+    return $("ai-model")?.value || ai?.defaultModel || "GLM-5.3-Flash";
+  }
+
+  function collectCitations(obj, into) {
+    if (!obj || typeof obj !== "object") return;
+    if (Array.isArray(obj)) { obj.forEach((n) => collectCitations(n, into)); return; }
+    const url = obj.url || obj.link || obj.uri;
+    if (typeof url === "string" && /^https?:\/\//i.test(url)) {
+      into.push({ url, title: String(obj.title || obj.name || "").slice(0, 120) });
+    }
+    for (const v of Object.values(obj)) collectCitations(v, into);
+  }
+
+  function paintTokens(usage) {
+    const el = $("ai-tokens");
+    if (!el) return;
+    if (!usage) { el.hidden = true; return; }
+    const inT = usage.prompt_tokens ?? usage.input_tokens;
+    const outT = usage.completion_tokens ?? usage.output_tokens;
+    const total = usage.total_tokens ?? ((inT || 0) + (outT || 0));
+    if (!total) { el.hidden = true; return; }
+    el.hidden = false;
+    el.textContent = inT != null && outT != null
+      ? `${inT} → ${outT} tokens`
+      : `${total} tokens`;
+  }
+
+  function historyForApi() {
+    const chat = getChat(activeId);
+    const rows = chat?.messages || [];
+    return rows.filter((m, i) => !(m.role === "assistant" && !m.content && i === rows.length - 1));
+  }
+
+  async function streamReply(fallbackPrompt) {
+    const box = $("ai-messages");
+    appendMessage(activeId, "assistant", "");
+    const row = msgRow({ role: "assistant", content: "", ts: Date.now() }, (getChat(activeId)?.messages.length || 1) - 1, { live: true });
+    box?.appendChild(row);
+    spring(row, [
+      { opacity: 0, filter: "blur(8px)", transform: "translateY(16px)" },
+      { opacity: 1, filter: "blur(0)", transform: "none" },
+    ], { duration: 480 });
+    const body = row.querySelector(".ai-msg-body");
+    setBusy(true);
+
+    abortCtl = new AbortController();
+    let acc = "";
+    const cites = [];
+    let usage = null;
+
+    const failOffline = async () => {
+      abortCtl = null;
+      setBusy(false);
+      removeLastAssistant(activeId);
+      await typeReply(offlineReply(fallbackPrompt));
+    };
+
+    try {
+      const res = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: selectedModel(),
+          messages: historyForApi(),
+          web: Boolean($("ai-web")?.classList.contains("on")),
+        }),
+        signal: abortCtl.signal,
+      });
+      if (res.status === 503) {
+        const err = await res.json().catch(() => ({}));
+        if (err.offline) return failOffline();
+      }
+      if (!res.ok || !res.body) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "The assistant could not reply");
+      }
+
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const frames = buf.split("\n\n");
+        buf = frames.pop() || "";
+        for (const frame of frames) {
+          for (const line of frame.split("\n")) {
+            if (!line.startsWith("data:")) continue;
+            const raw = line.slice(5).trim();
+            if (!raw || raw === "[DONE]") continue;
+            let json;
+            try { json = JSON.parse(raw); } catch { continue; }
+            collectCitations(json, cites);
+            const piece = json.choices?.[0]?.delta?.content
+              || json.choices?.[0]?.message?.content
+              || "";
+            if (piece) acc += piece;
+            if (json.usage) usage = json.usage;
+          }
+        }
+        replaceLastAssistant(activeId, acc, { usage, citations: uniqCites(cites) });
+        if (body) {
+          body.innerHTML = renderMarkdown(acc) + '<span class="ai-caret"></span>';
+          bindCodeCopy(body);
+        }
+        if (box) box.scrollTop = box.scrollHeight;
+        updateJump();
+      }
+      typing = null;
+      abortCtl = null;
+      setBusy(false);
+      paintTokens(usage);
+      paintMessages();
+    } catch (err) {
+      abortCtl = null;
+      if (err?.name === "AbortError") {
+        setBusy(false);
+        paintMessages();
+        return;
+      }
+      toast(err.message || "The assistant could not reply");
+      setBusy(false);
+      if (!acc) {
+        replaceLastAssistant(activeId, `Something went wrong generating a reply. You can retry from the message actions.`);
+        paintMessages();
+      } else {
+        paintMessages();
+      }
+    }
+  }
+
+  function uniqCites(list) {
+    const seen = new Set();
+    const out = [];
+    for (const c of list) {
+      if (!c?.url || seen.has(c.url)) continue;
+      seen.add(c.url);
+      out.push(c);
+    }
+    return out.slice(0, 8);
   }
 
   function typeReply(full) {
@@ -339,6 +496,8 @@ export function wireAi({ showToast } = {}) {
   }
 
   function stopTyping() {
+    if (abortCtl) abortCtl.abort();
+    abortCtl = null;
     if (typing) clearTimeout(typing);
     typing = null;
     setBusy(false);
@@ -347,7 +506,7 @@ export function wireAi({ showToast } = {}) {
 
   async function sendText(text, { attachments = pending } = {}) {
     const q = String(text || "").trim();
-    if ((!q && !attachments.length) || typing) return;
+    if ((!q && !attachments.length) || typing || abortCtl) return;
     ensureChat();
     appendMessage(activeId, "user", q || "(attachment)", attachments.length ? { attachments: attachments.slice() } : {});
     pending = [];
@@ -369,7 +528,7 @@ export function wireAi({ showToast } = {}) {
     if (input) { input.value = ""; input.style.height = "auto"; }
     updateCount();
     spring(sendBtn, [{ transform: "scale(0.86)" }, { transform: "scale(1)" }], { duration: 260 });
-    await typeReply(offlineReply(q));
+    await streamReply(q);
     markAiSeen();
     paintAiFab();
   }
@@ -382,7 +541,7 @@ export function wireAi({ showToast } = {}) {
     stopTyping();
     removeLastAssistant(activeId);
     paintMessages();
-    await typeReply(offlineReply(lastUser.content));
+    await streamReply(lastUser.content);
   }
 
   async function editUser(index, current) {
@@ -394,7 +553,7 @@ export function wireAi({ showToast } = {}) {
     trimAfter(activeId, index);
     paintList();
     paintMessages();
-    await typeReply(offlineReply(trimmed));
+    await streamReply(trimmed);
   }
 
   function paintPending() {
@@ -567,8 +726,36 @@ export function wireAi({ showToast } = {}) {
     openChat(activeId);
   });
 
-  const modelEl = $("ai-model-label");
-  if (modelEl) modelEl.textContent = "Blossom AI · offline";
+  const modelSel = $("ai-model");
+  if (modelSel) {
+    const models = ai?.models?.length ? ai.models : [
+      { id: "GLM-5.3-Flash", label: "GLM-5.3 Flash" },
+      { id: "MiMo-V2.5", label: "MiMo V2.5" },
+      { id: "Hy3", label: "Hy3" },
+      { id: "Qwen3.8-Flash", label: "Qwen3.8 Flash" },
+    ];
+    modelSel.innerHTML = "";
+    for (const m of models) {
+      const opt = document.createElement("option");
+      opt.value = m.id;
+      opt.textContent = m.label;
+      modelSel.appendChild(opt);
+    }
+    let saved = "";
+    try { saved = localStorage.getItem(MODEL_KEY) || ""; } catch {}
+    modelSel.value = models.some((m) => m.id === saved) ? saved : (ai?.defaultModel || models[0].id);
+    modelSel.addEventListener("change", () => {
+      try { localStorage.setItem(MODEL_KEY, modelSel.value); } catch {}
+    });
+  }
+  $("ai-web")?.addEventListener("click", () => {
+    $("ai-web").classList.toggle("on");
+  });
+  $("ai-handoff")?.addEventListener("click", async () => {
+    const text = exportTranscript(activeId);
+    try { await navigator.clipboard.writeText(text); } catch {}
+    toast("This assistant is automated. Transcript copied — send it to a person if you need one.");
+  });
 
   ensureChat();
   paintList();

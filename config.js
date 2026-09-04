@@ -1,8 +1,43 @@
 
 
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+
 const require = createRequire(import.meta.url);
 const pkg = require("./package.json");
+const rootDir = path.dirname(fileURLToPath(import.meta.url));
+
+function loadEnvFile(name) {
+  try {
+    const text = fs.readFileSync(path.join(rootDir, name), "utf8");
+    for (const line of text.split("\n")) {
+      if (!line || line.trimStart().startsWith("#")) continue;
+      const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+      if (!m) continue;
+      const key = m[1];
+      let val = m[2].trim();
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      if (process.env[key] === undefined) process.env[key] = val;
+    }
+  } catch {
+    // missing file is fine
+  }
+}
+
+if (!(process.env.DB_PATH || "").includes("qa-data")) {
+  loadEnvFile(".env.local");
+}
+
+export const AI_MODELS = [
+  { id: "GLM-5.3-Flash", label: "GLM-5.3 Flash" },
+  { id: "MiMo-V2.5", label: "MiMo V2.5" },
+  { id: "Hy3", label: "Hy3" },
+  { id: "Qwen3.8-Flash", label: "Qwen3.8 Flash" },
+];
 
 const config = {
 
@@ -74,6 +109,18 @@ const config = {
   },
 
   defaultPanicUrl: "https://classroom.google.com",
+
+  ai: {
+    apiKey: process.env.BAI_API_KEY || "",
+    baseUrl: (process.env.BAI_BASE_URL || "https://api.b.ai/v1").replace(/\/+$/, ""),
+    models: AI_MODELS,
+    defaultModel: AI_MODELS[0].id,
+  },
+
+  donate: {
+    cashapp: process.env.DONATE_CASHAPP_URL || "",
+    paypal: process.env.DONATE_PAYPAL_URL || "",
+  },
 
   version: pkg.version,
 };

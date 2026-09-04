@@ -49,6 +49,10 @@ All configuration is via environment variables. Copy [.env.example](.env.example
 | `MIRRORS` | - | Comma-separated mirror URLs for domain survival failover |
 | `REGISTRATION` | `open` | Set to `closed` to disable self-registration |
 | `INVITE_CODE` | - | If set, registration requires this code |
+| `BAI_API_KEY` | - | Server-only Blossom AI key (never shipped to the browser) |
+| `BAI_BASE_URL` | `https://api.b.ai/v1` | OpenAI-compatible AI endpoint |
+| `DONATE_CASHAPP_URL` | - | Cash App pay link shown on `/donate` |
+| `DONATE_PAYPAL_URL` | - | PayPal.Me or hosted-button URL shown on `/donate` |
 | `CAPTCHA_WATCH_HOSTS` | `google.com,reddit.com,recaptcha.net,hcaptcha.com,challenges.cloudflare.com` | Hosts whose cookies are vaulted. Subdomains match; `host:port` allowed for testing |
 | `CAPTCHA_REFRESH_SECONDS` | `300` | Keep-alive probe interval per vault entry (0 = off) |
 | `STEALTH_PROXY_URL` | - | Optional CONNECT proxy for keep-alive egress (uTLS sidecar) |

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Support Blossom." />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Donate — Blossom</title>
+  <link rel="icon" href="https://www.google.com/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,500&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script>
+    try {
+      var t = localStorage.getItem("blossom-theme");
+      document.documentElement.dataset.theme = t === "dark" ? "dark" : "light";
+    } catch (e) { document.documentElement.dataset.theme = "light"; }
+  </script>
+</head>
+<body class="donate-page">
+  <main class="donate-wrap">
+    <p class="donate-kicker">夜桜</p>
+    <h1>Keep Blossom blooming</h1>
+    <p class="donate-lead">If this portal helps you, a tip via Cash App or PayPal is enough. Nothing here is required to use the site.</p>
+    <div class="donate-cards">
+      <a id="donate-cashapp" class="donate-card" href="#" rel="noopener noreferrer">
+        <strong>Cash App</strong>
+        <small>Opens your Cash App pay link</small>
+      </a>
+      <a id="donate-paypal" class="donate-card" href="#" rel="noopener noreferrer">
+        <strong>PayPal</strong>
+        <small>Opens your PayPal.Me or button</small>
+      </a>
+    </div>
+    <p class="donate-note" id="donate-note" hidden>Payment links are not set on this host yet.</p>
+    <p><a class="donate-back" href="/">Back to Blossom</a></p>
+  </main>
+  <script>
+    fetch("/donate-config.json").then((r) => r.json()).then((cfg) => {
+      function wire(id, url) {
+        const a = document.getElementById(id);
+        if (!a) return false;
+        if (url) {
+          a.href = url;
+          a.target = "_blank";
+          return true;
+        }
+        a.removeAttribute("href");
+        a.classList.add("soon");
+        a.setAttribute("aria-disabled", "true");
+        const small = a.querySelector("small");
+        if (small) small.textContent = "Link not set yet";
+        return false;
+      }
+      const ok = wire("donate-cashapp", cfg.cashapp) | wire("donate-paypal", cfg.paypal);
+      const note = document.getElementById("donate-note");
+      if (note && !ok) note.hidden = false;
+    }).catch(() => {
+      const note = document.getElementById("donate-note");
+      if (note) note.hidden = false;
+    });
+  </script>
+</body>
+</html>

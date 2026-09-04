@@ -1,7 +1,7 @@
 
 const KEY = "blossom-ai-chats";
 const SEEN_KEY = "blossom-ai-seen";
-const MODEL = "Blossom AI (offline)";
+const MODEL = "Blossom AI";
 const MAX_CHATS = 40;
 const MAX_ATTACH = 3;
 const MAX_ATTACH_BYTES = 1.2 * 1024 * 1024;
@@ -110,19 +110,21 @@ export function appendMessage(id, role, content, extra = {}) {
   return chat;
 }
 
-export function replaceLastAssistant(id, content) {
+export function replaceLastAssistant(id, content, extra = {}) {
   const all = loadAll();
   const chat = all.find((c) => c.id === id);
   if (!chat) return null;
   for (let i = chat.messages.length - 1; i >= 0; i--) {
     if (chat.messages[i].role === "assistant") {
       chat.messages[i].content = content;
+      if (extra.usage) chat.messages[i].usage = extra.usage;
+      if (extra.citations) chat.messages[i].citations = extra.citations;
       chat.updatedAt = Date.now();
       saveAll(all);
       return chat;
     }
   }
-  return appendMessage(id, "assistant", content);
+  return appendMessage(id, "assistant", content, extra);
 }
 
 export function removeLastAssistant(id) {

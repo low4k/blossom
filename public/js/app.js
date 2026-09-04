@@ -122,7 +122,7 @@ async function init() {
   wirePanels();
   wireGames();
   wireApps();
-  wireAi({ showToast });
+  wireAi({ showToast, ai: config.ai });
   wireHistoryPanel();
   wireProxyToolbar();
   wireAccount();

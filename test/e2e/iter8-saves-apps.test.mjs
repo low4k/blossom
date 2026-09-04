@@ -40,6 +40,8 @@ try {
       search: !!document.getElementById("ai-search"),
     }));
     record("ai", "AI view opens", info.visible && info.composer && info.starters >= 3, JSON.stringify(info));
+    const donate = await page.evaluate(() => !!document.querySelector(".donate-chip"));
+    record("ai", "donate chip is present", donate);
     record("ai", "AI route is /ai", page.url() === `${base}/ai`, `url=${page.url()}`);
     await page.click("#ai-back");
     await page.waitForTimeout(200);

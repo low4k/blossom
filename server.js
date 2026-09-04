@@ -15,6 +15,7 @@ import { healthHandler } from "./health.js";
 import { authRouter, requireAuth, COOKIE_NAME, parseCookie } from "./auth.js";
 import { adminRouter } from "./admin.js";
 import { captchaRouter, initCaptchaLayer } from "./captcha.js";
+import { handleAiChat, publicAiConfig, publicDonateConfig } from "./ai-proxy.js";
 import {
   validateSession,
   getUserBookmarks, addUserBookmark, removeUserBookmark,
@@ -67,6 +68,9 @@ app.use(compression());
 
 app.use((req, res, next) => {
   if (req.path.startsWith("/api/saves")) return next();
+  if (req.path.startsWith("/api/ai")) {
+    return express.json({ limit: "1.5mb" })(req, res, next);
+  }
   return express.json({ limit: "100kb" })(req, res, next);
 });
 
@@ -87,6 +91,14 @@ app.get("/login", (_req, res) => {
   res.sendFile(path.join(publicPath, "login.html"));
 });
 
+app.get("/donate-config.json", (_req, res) => {
+  res.json(publicDonateConfig());
+});
+
+app.get(["/donate", "/donate/"], (_req, res) => {
+  res.sendFile(path.join(publicPath, "donate.html"));
+});
+
 // True when the request comes from client-side fetch/XHR rather than a page
 // navigation. fetch() sends sec-fetch-dest: empty; navigations send "document".
 function wantsJson(req) {
@@ -99,7 +111,7 @@ function wantsJson(req) {
 
 app.use((req, res, next) => {
 
-  const publicPaths = ["/styles.css", "/login.html", "/diag.html", "/manifest.webmanifest", "/icon.svg", "/js/petals.js", "/branch.svg"];
+  const publicPaths = ["/styles.css", "/login.html", "/donate.html", "/donate", "/donate/", "/donate-config.json", "/diag.html", "/manifest.webmanifest", "/icon.svg", "/js/petals.js", "/branch.svg"];
   if (publicPaths.some((p) => req.path === p)) return next();
 
   // Terminate common engine/probe paths immediately (before the auth gate) so
@@ -180,6 +192,18 @@ app.get("/api/history", requireAuth, (req, res) => {
   res.json(getUserHistory(req.user.id));
 });
 
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many AI requests, wait a moment" },
+});
+app.get("/api/ai/models", requireAuth, (_req, res) => {
+  res.json(publicAiConfig());
+});
+app.post("/api/ai/chat", requireAuth, aiLimiter, handleAiChat);
+
 // Anti-CAPTCHA vault + visibility endpoints
 app.use("/api/captcha", requireAuth, captchaRouter);
 
@@ -256,6 +280,8 @@ app.get("/blossom-config.json", (req, res) => {
     defaultCloak: config.defaultCloak,
     defaultPanicUrl: config.defaultPanicUrl,
     captchaWatchHosts: config.captcha.watchHosts,
+    ai: publicAiConfig(),
+    donate: publicDonateConfig(),
     user: req.user ? {
       id: req.user.id,
       displayName: req.user.displayName,
