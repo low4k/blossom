@@ -7,15 +7,14 @@ import {
   updateUserFeatures,
   updateUserRole,
   deleteUser,
-  getUserCount,
-  getActiveSessionCount,
-  getRecentSignups,
   logAdminAction,
   getAdminLog,
   setTotpSecret,
   enableTotp,
   disableTotp,
   getTotpState,
+  getAdminOverview,
+  revokeUserSessions,
 } from "./db.js";
 import { generateTotpSecret, verifyTotp, otpauthUri } from "./totp.js";
 
@@ -24,13 +23,7 @@ const router = Router();
 router.use(requireAuth, requireDev);
 
 router.get("/api/stats", (_req, res) => {
-  res.json({
-    totalUsers: getUserCount(),
-    activeSessions: getActiveSessionCount(),
-    recentSignups7d: getRecentSignups(7),
-    memoryMB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-    uptime: Math.floor(process.uptime()),
-  });
+  res.json(getAdminOverview());
 });
 
 router.get("/api/users", (_req, res) => {
@@ -103,6 +96,14 @@ router.put("/api/users/:id/role", (req, res) => {
     return res.status(409).json({ error: result.error });
   }
   logAdminAction(req.user, "update_role", userId, role);
+  res.json({ ok: true });
+});
+
+router.delete("/api/users/:id/sessions", (req, res) => {
+  const userId = parseInt(req.params.id, 10);
+  const result = revokeUserSessions(userId);
+  if (result.error) return res.status(409).json({ error: result.error });
+  logAdminAction(req.user, "revoke_sessions", userId, "");
   res.json({ ok: true });
 });
 

@@ -123,6 +123,7 @@ const DEFAULT_FEATURES = {
   apps: true,
   bookmarks: true,
   settings: true,
+  ai: true,
 };
 
 function parseFeatures(raw) {
@@ -333,6 +334,83 @@ export function getActiveSessionCount() {
 export function getRecentSignups(days = 7) {
   const since = Math.floor(Date.now() / 1000) - days * 86400;
   return db.prepare("SELECT COUNT(*) as count FROM users WHERE created_at > ?").get(since).count;
+}
+
+export function revokeUserSessions(userId) {
+  const target = db.prepare("SELECT role FROM users WHERE id = ?").get(userId);
+  if (!target) return { error: "User not found" };
+  if (target.role === "dev") return { error: "Cannot revoke sessions for a dev account" };
+  db.prepare("DELETE FROM sessions WHERE user_id = ?").run(userId);
+  return { ok: true };
+}
+
+function fillDays(rows, days) {
+  const map = new Map(rows.map((r) => [r.day, r.count]));
+  const out = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setUTCHours(0, 0, 0, 0);
+    d.setUTCDate(d.getUTCDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    out.push({ day: key, count: map.get(key) || 0 });
+  }
+  return out;
+}
+
+export function getAdminOverview() {
+  const mem = process.memoryUsage();
+  const signups = db.prepare(
+    `SELECT date(created_at, 'unixepoch') AS day, COUNT(*) AS count
+     FROM users WHERE created_at >= unixepoch('now', '-14 days')
+     GROUP BY day ORDER BY day`
+  ).all();
+  const visits = db.prepare(
+    `SELECT date(visited_at, 'unixepoch') AS day, COUNT(*) AS count
+     FROM history WHERE visited_at >= unixepoch('now', '-14 days')
+     GROUP BY day ORDER BY day`
+  ).all();
+  const captcha = db.prepare(
+    `SELECT date(created_at, 'unixepoch') AS day, COUNT(*) AS count
+     FROM captcha_events WHERE created_at >= unixepoch('now', '-14 days')
+     GROUP BY day ORDER BY day`
+  ).all();
+  const topHosts = db.prepare(
+    `SELECT host, COUNT(*) AS count FROM (
+       SELECT CASE
+         WHEN instr(substr(url, instr(url, '://') + 3), '/') > 0
+         THEN substr(url, instr(url, '://') + 3, instr(substr(url, instr(url, '://') + 3), '/') - 1)
+         ELSE substr(url, instr(url, '://') + 3)
+       END AS host
+       FROM history
+       WHERE visited_at >= unixepoch('now', '-14 days') AND url LIKE 'http%'
+     )
+     WHERE host != ''
+     GROUP BY host
+     ORDER BY count DESC
+     LIMIT 8`
+  ).all();
+  const roles = db.prepare(`SELECT role, COUNT(*) AS count FROM users GROUP BY role`).all();
+  const totpOn = db.prepare(`SELECT COUNT(*) AS count FROM users WHERE totp_enabled = 1`).get().count;
+  return {
+    totalUsers: getUserCount(),
+    activeSessions: getActiveSessionCount(),
+    recentSignups7d: getRecentSignups(7),
+    memoryMB: Math.round(mem.heapUsed / 1024 / 1024),
+    rssMB: Math.round(mem.rss / 1024 / 1024),
+    uptime: Math.floor(process.uptime()),
+    totpEnabled: totpOn,
+    bookmarks: db.prepare("SELECT COUNT(*) AS c FROM bookmarks").get().c,
+    historyRows: db.prepare("SELECT COUNT(*) AS c FROM history").get().c,
+    saves: db.prepare("SELECT COUNT(*) AS c FROM saves").get().c,
+    captchaEvents7d: db.prepare(
+      "SELECT COUNT(*) AS c FROM captcha_events WHERE created_at >= unixepoch('now', '-7 days')"
+    ).get().c,
+    roles: Object.fromEntries(roles.map((r) => [r.role, r.count])),
+    signupsByDay: fillDays(signups, 14),
+    visitsByDay: fillDays(visits, 14),
+    captchaByDay: fillDays(captcha, 14),
+    topHosts,
+  };
 }
 
 export function getUserBookmarks(userId) {

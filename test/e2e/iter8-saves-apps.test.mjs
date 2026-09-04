@@ -28,6 +28,20 @@ try {
     record("setup", "login as user", page.url() === `${base}/`);
   });
 
+  await step("ai", "Blossom AI view opens with composer", async () => {
+    await page.keyboard.press("Escape");
+    await page.click("#btn-ai");
+    await page.waitForTimeout(400);
+    const info = await page.evaluate(() => ({
+      visible: !document.getElementById("ai-view").hidden,
+      composer: !!document.getElementById("ai-input"),
+      starters: document.querySelectorAll(".ai-starter").length,
+    }));
+    record("ai", "AI view opens", info.visible && info.composer && info.starters >= 3, JSON.stringify(info));
+    await page.click("#ai-back");
+    await page.waitForTimeout(200);
+  });
+
   await step("apps", "apps view opens and grid loads from manifest", async () => {
     await page.keyboard.press("Escape");
     await page.click("#btn-apps");

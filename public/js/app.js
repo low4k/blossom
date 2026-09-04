@@ -2,7 +2,7 @@
 
 import { registerSW } from "./register-sw.js";
 import { resolveInput, getSearchEngineInfo, cycleSearchEngine } from "./search.js";
-import { applyCloak } from "./cloak.js";
+import { applyCloak, launchAboutBlankCloak } from "./cloak.js";
 import { initPanic } from "./panic.js";
 import { loadGames, filterGames, getAllTags, toggleFavorite, isFavorite, recordGamePlayed, getRecentGames, getFavorites, getGameById, hydrateFavorites, hydrateRecents, getGames } from "./games.js";
 import { getBookmarks, addBookmark, removeBookmark, isBookmarked, syncBookmarksFromServer } from "./bookmarks.js";
@@ -13,6 +13,11 @@ import { initVaultSync } from "./vault.js";
 import { startSaveSession, endSaveSession, restoreSave, saveIdForUrl, flushSaveKeepalive, syncSave, bindSaveFrame, loadCatalogPrefs, scheduleCatalogPrefs } from "./saves.js";
 import { loadApps, getApps, filterApps, getAppTags, toggleAppFavorite, isAppFavorite, recordAppUsed, getRecentApps, getAppFavorites, getAppById, hydrateAppFavorites, hydrateAppRecents } from "./apps.js";
 import { bindOmnibox } from "./suggest.js";
+import { rewriteDestination, skipSaveFor } from "./dest.js";
+import {
+  listChats, getChat, createChat, deleteChat, appendMessage, replaceLastAssistant,
+  exportChat, offlineReply, renderMarkdown, STARTERS, MODEL,
+} from "./ai.js";
 
 let config = {};
 let scramjet = null;
@@ -71,6 +76,7 @@ async function init() {
     const hide = (id) => { const el = document.getElementById(id); if (el) el.hidden = true; };
     if (f.games === false) hide("btn-games");
     if (f.apps === false) hide("btn-apps");
+    if (f.ai === false) hide("btn-ai");
     if (f.bookmarks === false) hide("btn-bookmarks");
     if (f.settings === false) hide("btn-settings");
   }
@@ -116,6 +122,7 @@ async function init() {
   wireGamesView();
   wireApps();
   wireAppsView();
+  wireAi();
   wireHistoryPanel();
   wireProxyToolbar();
   wireLogoClick();
@@ -236,17 +243,19 @@ async function navigateTo(url, catalogId = null) {
     return;
   }
 
-  const resolved = resolveInput(url);
-  if (!resolved) return;
+  const raw = resolveInput(url);
+  if (!raw) return;
+  const resolved = rewriteDestination(raw);
 
   console.log("[Blossom] Navigating to:", resolved);
 
-  // Per-account save sessions: flush the previous game/app, then restore the
-  // new one's last saved state before the frame boots.
   const nextSaveId = saveIdForUrl(resolved, catalogId || catalogIdForUrl(resolved));
+  const skipSave = skipSaveFor(resolved);
   try { await endSaveSession(); } catch {}
   let saveSeed = { ownedKeys: new Set(), ownedDbs: new Set() };
-  try { saveSeed = await restoreSave(nextSaveId); } catch {}
+  if (!skipSave) {
+    try { saveSeed = await restoreSave(nextSaveId); } catch {}
+  }
 
   const loadingOverlay = document.getElementById("loading-overlay");
   const proxyToolbar = document.getElementById("proxy-toolbar");
@@ -272,8 +281,10 @@ async function navigateTo(url, catalogId = null) {
 
   const gamesView = document.getElementById("games-view");
   const appsView = document.getElementById("apps-view");
+  const aiView = document.getElementById("ai-view");
   if (gamesView) gamesView.hidden = true;
   if (appsView) appsView.hidden = true;
+  if (aiView) aiView.hidden = true;
 
   if (currentUser && currentUser.features?.proxy === false) {
     loadingOverlay.hidden = true;
@@ -283,21 +294,15 @@ async function navigateTo(url, catalogId = null) {
     return;
   }
 
-  if (proxyActive && scramjetFrame) {
-    scramjetFrame.frame.addEventListener("load", () => {
-      loadingOverlay.hidden = true;
-    }, { once: true });
-    setTimeout(() => { loadingOverlay.hidden = true; }, 10000);
-    scramjetFrame.go(resolved);
-    updateBookmarkButton(resolved);
-    startSaveSession(nextSaveId, scramjetFrame.frame, saveSeed);
-    return;
-  }
-
   const homeView = document.getElementById("home-view");
   homeView.style.display = "none";
   proxyActive = true;
   document.body.classList.add("proxying");
+
+  if (scramjetFrame) {
+    try { scramjetFrame.frame.remove(); } catch {}
+    scramjetFrame = null;
+  }
 
   const frame = scramjet.createFrame();
   frame.frame.id = "proxy-frame";
@@ -336,7 +341,14 @@ async function navigateTo(url, catalogId = null) {
     try {
       const fw = frame.frame.contentWindow;
       if (fw) {
-        fw.open = () => null;
+        fw.open = (openUrl) => {
+          if (!openUrl || openUrl === "about:blank") return null;
+          try {
+            const abs = new URL(openUrl, currentProxyUrl || resolved).href;
+            if (scramjetFrame) scramjetFrame.go(abs);
+          } catch {}
+          return null;
+        };
         const doc = frame.frame.contentDocument;
         if (doc) doc.querySelectorAll('a[target="_blank"]').forEach(a => a.removeAttribute("target"));
       }
@@ -363,13 +375,13 @@ async function navigateTo(url, catalogId = null) {
     loadingOverlay.hidden = true;
   });
 
-  setTimeout(() => { loadingOverlay.hidden = true; }, 10000);
+  setTimeout(() => { loadingOverlay.hidden = true; }, skipSave ? 20000 : 10000);
 
   const oldFrame = document.getElementById("proxy-frame");
   if (oldFrame) oldFrame.remove();
 
   document.getElementById("app").appendChild(frame.frame);
-  startSaveSession(nextSaveId, frame.frame, saveSeed);
+  if (!skipSave) startSaveSession(nextSaveId, frame.frame, saveSeed);
   scramjetFrame = frame;
   frame.go(resolved);
 
@@ -398,6 +410,7 @@ function goHome() {
   const homeView = document.getElementById("home-view");
   const gamesView = document.getElementById("games-view");
   const appsView = document.getElementById("apps-view");
+  const aiView = document.getElementById("ai-view");
   const proxyToolbar = document.getElementById("proxy-toolbar");
   const loadingOverlay = document.getElementById("loading-overlay");
   const expandBtn = document.getElementById("proxy-expand");
@@ -406,6 +419,7 @@ function goHome() {
   homeView.style.display = "";
   if (gamesView) gamesView.hidden = true;
   if (appsView) appsView.hidden = true;
+  if (aiView) aiView.hidden = true;
   proxyToolbar.hidden = true;
   loadingOverlay.hidden = true;
   if (expandBtn) expandBtn.hidden = true;
@@ -435,6 +449,8 @@ async function navigateLocal(absUrl, catalogId = null) {
   if (homeView) homeView.style.display = "none";
   if (gamesView) gamesView.hidden = true;
   if (appsView) appsView.hidden = true;
+  const aiViewLocal = document.getElementById("ai-view");
+  if (aiViewLocal) aiViewLocal.hidden = true;
   if (loadingOverlay) loadingOverlay.hidden = false;
   if (proxyToolbar) proxyToolbar.hidden = false;
 
@@ -557,7 +573,12 @@ function wirePanels() {
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       const openPanel = document.querySelector(".side-panel.open");
-      if (openPanel) closePanel(openPanel.id);
+      if (openPanel) {
+        closePanel(openPanel.id);
+        return;
+      }
+      const aiView = document.getElementById("ai-view");
+      if (aiView && !aiView.hidden) hideCatalogToHome();
     }
   });
 
@@ -1015,7 +1036,61 @@ function wireProxyToolbar() {
     }
   });
 
-  urlInput.addEventListener("focus", () => urlInput.select());
+  urlInput.addEventListener("focus", () => {
+    if (urlInput.dataset.href) urlInput.value = urlInput.dataset.href;
+    urlInput.select();
+    const clear = document.getElementById("proxy-url-clear");
+    if (clear) clear.hidden = !urlInput.value;
+  });
+  urlInput.addEventListener("blur", () => {
+    if (urlInput.dataset.href) updateProxyUrlBar(urlInput.dataset.href);
+  });
+  urlInput.addEventListener("input", () => {
+    const clear = document.getElementById("proxy-url-clear");
+    if (clear) clear.hidden = !urlInput.value;
+  });
+
+  const urlClear = document.getElementById("proxy-url-clear");
+  if (urlClear) {
+    urlClear.addEventListener("mousedown", (e) => e.preventDefault());
+    urlClear.addEventListener("click", () => {
+      urlInput.value = "";
+      urlInput.focus();
+      urlClear.hidden = true;
+    });
+  }
+
+  document.getElementById("proxy-copy")?.addEventListener("click", async () => {
+    const href = currentProxyUrl || urlInput.dataset.href || urlInput.value;
+    try { await navigator.clipboard.writeText(href); showToast("Copied URL"); } catch { showToast("Could not copy"); }
+  });
+
+  const moreBtn = document.getElementById("proxy-more");
+  const moreMenu = document.getElementById("proxy-more-menu");
+  moreBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (moreMenu) moreMenu.hidden = !moreMenu.hidden;
+  });
+  document.addEventListener("click", () => { if (moreMenu) moreMenu.hidden = true; });
+  moreMenu?.addEventListener("click", async (e) => {
+    const act = e.target?.dataset?.act;
+    if (!act) return;
+    moreMenu.hidden = true;
+    const href = currentProxyUrl || urlInput.dataset.href || "";
+    if (act === "copy") {
+      try { await navigator.clipboard.writeText(href); showToast("Copied URL"); } catch {}
+    } else if (act === "copy-host") {
+      try { await navigator.clipboard.writeText(new URL(href).hostname); showToast("Copied host"); } catch {}
+    } else if (act === "hard-reload") {
+      if (scramjetFrame) {
+        scramjetFrame.frame.remove();
+        scramjetFrame = null;
+      }
+      if (href) navigateTo(href);
+    } else if (act === "popout") {
+      launchAboutBlankCloak();
+    }
+  });
 
   document.getElementById("proxy-collapse").addEventListener("click", () => {
     const toolbar = document.getElementById("proxy-toolbar");
@@ -1042,17 +1117,27 @@ function wireProxyToolbar() {
 
 function updateProxyUrlBar(url) {
   const urlInput = document.getElementById("proxy-url-input");
+  const lock = document.getElementById("proxy-secure");
+  const clear = document.getElementById("proxy-url-clear");
 
   try {
     const parsed = typeof url === "string" ? new URL(url) : url;
     const path = parsed.pathname === "/" ? "" : parsed.pathname;
-    urlInput.value = parsed.hostname + path;
+    const compact = parsed.hostname + path + (parsed.search || "");
+    urlInput.dataset.href = parsed.href;
     urlInput.title = parsed.href;
+    if (document.activeElement !== urlInput) urlInput.value = compact;
     currentProxyUrl = parsed.href;
+    if (lock) {
+      lock.classList.toggle("insecure", parsed.protocol !== "https:");
+      lock.title = parsed.protocol === "https:" ? "HTTPS" : "Not HTTPS";
+    }
   } catch {
     urlInput.value = url;
+    urlInput.dataset.href = String(url || "");
     currentProxyUrl = url;
   }
+  if (clear) clear.hidden = !urlInput.value;
 }
 
 function updateBookmarkButton(url) {
@@ -1067,8 +1152,10 @@ function updateBookmarkButton(url) {
 function hideCatalogViews() {
   const gamesView = document.getElementById("games-view");
   const appsView = document.getElementById("apps-view");
+  const aiView = document.getElementById("ai-view");
   if (gamesView) gamesView.hidden = true;
   if (appsView) appsView.hidden = true;
+  if (aiView) aiView.hidden = true;
 }
 
 function wireGamesView() {
@@ -1114,9 +1201,223 @@ function showAppsView() {
 }
 
 function hideCatalogToHome() {
+  hideCatalogViews();
+  const homeView = document.getElementById("home-view");
+  if (homeView) homeView.style.display = "";
+}
+
+function wireAi() {
+  const btn = document.getElementById("btn-ai");
+  const back = document.getElementById("ai-back");
+  if (btn) btn.addEventListener("click", showAiView);
+  if (back) back.addEventListener("click", hideCatalogToHome);
+
+  const form = document.getElementById("ai-composer");
+  const input = document.getElementById("ai-input");
+  const sendBtn = document.getElementById("ai-send");
+  const stopBtn = document.getElementById("ai-stop");
+  const attach = document.getElementById("ai-attach");
+  const exportBtn = document.getElementById("ai-export");
+  const newBtn = document.getElementById("ai-new");
+  const starters = document.getElementById("ai-starters");
+
+  let activeId = null;
+  let typing = null;
+
+  function paintList() {
+    const ul = document.getElementById("ai-chat-list");
+    if (!ul) return;
+    ul.innerHTML = "";
+    for (const c of listChats()) {
+      const li = document.createElement("li");
+      li.className = c.id === activeId ? "active" : "";
+      const open = document.createElement("button");
+      open.type = "button";
+      open.className = "ai-chat-open";
+      open.textContent = c.title;
+      open.addEventListener("click", () => openChat(c.id));
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "ai-chat-del";
+      del.setAttribute("aria-label", "Delete chat");
+      del.textContent = "✕";
+      del.addEventListener("click", (e) => {
+        e.stopPropagation();
+        deleteChat(c.id);
+        if (activeId === c.id) activeId = listChats()[0]?.id || createChat().id;
+        openChat(activeId);
+      });
+      li.appendChild(open);
+      li.appendChild(del);
+      ul.appendChild(li);
+    }
+  }
+
+  function paintMessages() {
+    const box = document.getElementById("ai-messages");
+    const chat = getChat(activeId);
+    if (!box || !chat) return;
+    box.innerHTML = "";
+    for (const msg of chat.messages) {
+      const row = document.createElement("article");
+      row.className = `ai-msg ai-msg-${msg.role}`;
+      const who = document.createElement("div");
+      who.className = "ai-msg-role";
+      who.textContent = msg.role === "user" ? "You" : "Blossom";
+      const body = document.createElement("div");
+      body.className = "ai-msg-body";
+      body.innerHTML = renderMarkdown(msg.content);
+      const tools = document.createElement("div");
+      tools.className = "ai-msg-tools";
+      const copy = document.createElement("button");
+      copy.type = "button";
+      copy.textContent = "Copy";
+      copy.addEventListener("click", async () => {
+        try { await navigator.clipboard.writeText(msg.content); showToast("Copied"); } catch {}
+      });
+      tools.appendChild(copy);
+      if (msg.role === "assistant") {
+        const regen = document.createElement("button");
+        regen.type = "button";
+        regen.textContent = "Regenerate";
+        regen.addEventListener("click", () => regenerate());
+        tools.appendChild(regen);
+      }
+      row.appendChild(who);
+      row.appendChild(body);
+      row.appendChild(tools);
+      box.appendChild(row);
+    }
+    box.scrollTop = box.scrollHeight;
+    const empty = !chat.messages.length;
+    if (starters) starters.hidden = !empty;
+  }
+
+  function openChat(id) {
+    activeId = id;
+    paintList();
+    paintMessages();
+  }
+
+  function ensureChat() {
+    if (activeId && getChat(activeId)) return;
+    const existing = listChats()[0];
+    activeId = existing ? existing.id : createChat().id;
+  }
+
+  function setBusy(on) {
+    if (sendBtn) sendBtn.disabled = on;
+    if (stopBtn) stopBtn.hidden = !on;
+    if (input) input.disabled = on;
+  }
+
+  function typeReply(full) {
+    return new Promise((resolve) => {
+      let i = 0;
+      let acc = "";
+      setBusy(true);
+      const tick = () => {
+        acc += full.charAt(i);
+        i += 1;
+        replaceLastAssistant(activeId, acc);
+        paintMessages();
+        if (i >= full.length) {
+          typing = null;
+          setBusy(false);
+          resolve();
+          return;
+        }
+        typing = setTimeout(tick, 8);
+      };
+      appendMessage(activeId, "assistant", "");
+      tick();
+    });
+  }
+
+  function stopTyping() {
+    if (typing) clearTimeout(typing);
+    typing = null;
+    setBusy(false);
+  }
+
+  async function sendText(text) {
+    const q = String(text || "").trim();
+    if (!q || typing) return;
+    ensureChat();
+    appendMessage(activeId, "user", q);
+    paintList();
+    paintMessages();
+    if (input) { input.value = ""; input.style.height = "auto"; }
+    await typeReply(offlineReply());
+  }
+
+  async function regenerate() {
+    const chat = getChat(activeId);
+    if (!chat) return;
+    const lastUser = [...chat.messages].reverse().find((m) => m.role === "user");
+    if (!lastUser) return;
+    stopTyping();
+    replaceLastAssistant(activeId, "");
+    await typeReply(offlineReply());
+  }
+
+  form?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    sendText(input?.value);
+  });
+  input?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendText(input.value);
+    }
+  });
+  input?.addEventListener("input", () => {
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 160) + "px";
+  });
+  stopBtn?.addEventListener("click", stopTyping);
+  attach?.addEventListener("click", () => showToast("Attachments are not connected yet."));
+  exportBtn?.addEventListener("click", () => {
+    const data = exportChat(activeId);
+    if (!data) return;
+    const blob = new Blob([data], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "blossom-ai-chat.json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+  newBtn?.addEventListener("click", () => {
+    stopTyping();
+    openChat(createChat().id);
+  });
+  if (starters) {
+    starters.innerHTML = "";
+    for (const s of STARTERS) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "ai-starter";
+      b.textContent = s.label;
+      b.addEventListener("click", () => sendText(s.prompt));
+      starters.appendChild(b);
+    }
+  }
+  const modelEl = document.getElementById("ai-model-label");
+  if (modelEl) modelEl.textContent = MODEL;
+
+  ensureChat();
+  paintList();
+  paintMessages();
+}
+
+function showAiView() {
+  closeAllPanels();
+  if (proxyActive) goHome();
   const homeView = document.getElementById("home-view");
   hideCatalogViews();
-  if (homeView) homeView.style.display = "";
+  if (homeView) homeView.style.display = "none";
+  const aiView = document.getElementById("ai-view");
+  if (aiView) aiView.hidden = false;
 }
 
 function hideGamesView() {

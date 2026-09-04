@@ -133,14 +133,25 @@ await step("search", "resolveInput: search term / bare domain / full URL", async
       localhost: m.resolveInput("localhost:3000"),
     };
   });
+  const dest = await page.evaluate(async () => {
+    const m = await import("/js/dest.js");
+    return {
+      watch: m.rewriteDestination("https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
+      home: m.rewriteDestination("https://youtube.com/"),
+      skip: m.skipSaveFor("https://www.youtube.com/"),
+    };
+  });
   const ok =
     res.searchTerm === "https://duckduckgo.com/?q=" + encodeURIComponent("cute cats") &&
     res.bareDomain === "https://example.com/" &&
     res.fullUrl === "https://example.com/page?a=1" &&
     res.empty === null &&
     res.bangYt === "https://www.youtube.com/results?search_query=" + encodeURIComponent("never gonna") &&
-    res.localhost === "http://localhost:3000/";
-  record("search", "resolveInput resolution rules", ok, JSON.stringify(res));
+    res.localhost === "http://localhost:3000/" &&
+    dest.watch.includes("yewtu.be/watch?v=dQw4w9WgXcQ") &&
+    dest.home.startsWith("https://yewtu.be") &&
+    dest.skip === true;
+  record("search", "resolveInput resolution rules", ok, JSON.stringify({ res, dest }));
 });
 
 await step("search", "omnibox suggests catalog apps and bangs", async () => {

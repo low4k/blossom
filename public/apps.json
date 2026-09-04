@@ -2,110 +2,211 @@
   {
     "id": "youtube",
     "name": "YouTube",
-    "url": "https://www.youtube.com/",
-    "tags": [
-      "video",
-      "social"
-    ],
+    "url": "https://yewtu.be/",
+    "tags": ["video", "social"],
     "thumb": "imgs/apps/youtube.png"
   },
   {
     "id": "spotify",
     "name": "Spotify",
     "url": "https://open.spotify.com/",
-    "tags": [
-      "music"
-    ],
+    "tags": ["music"],
     "thumb": "imgs/apps/spotify.png"
   },
   {
     "id": "discord",
     "name": "Discord",
     "url": "https://discord.com/app",
-    "tags": [
-      "chat",
-      "social"
-    ],
+    "tags": ["chat", "social"],
     "thumb": "imgs/apps/discord.png"
+  },
+  {
+    "id": "github",
+    "name": "GitHub",
+    "url": "https://github.com/",
+    "tags": ["dev", "tools"],
+    "thumb": "imgs/apps/github.svg"
+  },
+  {
+    "id": "reddit",
+    "name": "Reddit",
+    "url": "https://old.reddit.com/",
+    "tags": ["social", "reading"],
+    "thumb": "imgs/apps/reddit.svg"
+  },
+  {
+    "id": "mdn",
+    "name": "MDN Web Docs",
+    "url": "https://developer.mozilla.org/",
+    "tags": ["dev", "reference"],
+    "thumb": "imgs/apps/mdn.svg"
+  },
+  {
+    "id": "archive",
+    "name": "Internet Archive",
+    "url": "https://archive.org/",
+    "tags": ["reference", "reading"],
+    "thumb": "imgs/apps/archive.svg"
+  },
+  {
+    "id": "lichess",
+    "name": "Lichess",
+    "url": "https://lichess.org/",
+    "tags": ["games", "tools"],
+    "thumb": "imgs/apps/lichess.svg"
+  },
+  {
+    "id": "scratch",
+    "name": "Scratch",
+    "url": "https://scratch.mit.edu/",
+    "tags": ["dev", "education"],
+    "thumb": "imgs/apps/scratch.svg"
+  },
+  {
+    "id": "soundcloud",
+    "name": "SoundCloud",
+    "url": "https://soundcloud.com/",
+    "tags": ["music"],
+    "thumb": "imgs/apps/soundcloud.svg"
+  },
+  {
+    "id": "stackoverflow",
+    "name": "Stack Overflow",
+    "url": "https://stackoverflow.com/",
+    "tags": ["dev", "reference"],
+    "thumb": "imgs/apps/stackoverflow.svg"
+  },
+  {
+    "id": "duckduckgo",
+    "name": "DuckDuckGo",
+    "url": "https://duckduckgo.com/",
+    "tags": ["search", "tools"],
+    "thumb": "imgs/apps/duckduckgo.svg"
+  },
+  {
+    "id": "diagrams",
+    "name": "diagrams.net",
+    "url": "https://app.diagrams.net/",
+    "tags": ["drawing", "tools"],
+    "thumb": "imgs/apps/diagrams.svg"
+  },
+  {
+    "id": "regex101",
+    "name": "Regex101",
+    "url": "https://regex101.com/",
+    "tags": ["dev", "tools"],
+    "thumb": "imgs/apps/regex101.svg"
+  },
+  {
+    "id": "codepen",
+    "name": "CodePen",
+    "url": "https://codepen.io/",
+    "tags": ["dev", "tools"],
+    "thumb": "imgs/apps/codepen.svg"
+  },
+  {
+    "id": "itch",
+    "name": "itch.io",
+    "url": "https://itch.io/",
+    "tags": ["games"],
+    "thumb": "imgs/apps/itch.svg"
+  },
+  {
+    "id": "genius",
+    "name": "Genius",
+    "url": "https://genius.com/",
+    "tags": ["music", "reading"],
+    "thumb": "imgs/apps/genius.svg"
+  },
+  {
+    "id": "bandcamp",
+    "name": "Bandcamp",
+    "url": "https://bandcamp.com/",
+    "tags": ["music"],
+    "thumb": "imgs/apps/bandcamp.svg"
+  },
+  {
+    "id": "w3schools",
+    "name": "W3Schools",
+    "url": "https://www.w3schools.com/",
+    "tags": ["education", "dev"],
+    "thumb": "imgs/apps/w3schools.svg"
+  },
+  {
+    "id": "freecodecamp",
+    "name": "freeCodeCamp",
+    "url": "https://www.freecodecamp.org/learn/",
+    "tags": ["education", "dev"],
+    "thumb": "imgs/apps/freecodecamp.svg"
+  },
+  {
+    "id": "pixlr",
+    "name": "Pixlr",
+    "url": "https://pixlr.com/editor/",
+    "tags": ["image edit", "tools"],
+    "thumb": "imgs/apps/pixlr.svg"
+  },
+  {
+    "id": "mermaid",
+    "name": "Mermaid Live",
+    "url": "https://mermaid.live/",
+    "tags": ["dev", "drawing"],
+    "thumb": "imgs/apps/mermaid.svg"
   },
   {
     "id": "photopea",
     "name": "Photopea",
     "url": "https://www.photopea.com/",
-    "tags": [
-      "image edit",
-      "tools"
-    ],
+    "tags": ["image edit", "tools"],
     "thumb": "imgs/apps/photopea.png"
   },
   {
     "id": "excalidraw",
     "name": "Excalidraw",
     "url": "https://excalidraw.com/",
-    "tags": [
-      "drawing",
-      "tools"
-    ],
+    "tags": ["drawing", "tools"],
     "thumb": "imgs/apps/excalidraw.png"
   },
   {
     "id": "desmos",
     "name": "Desmos Graphing",
     "url": "https://www.desmos.com/calculator",
-    "tags": [
-      "math",
-      "tools"
-    ],
+    "tags": ["math", "tools"],
     "thumb": "imgs/apps/desmos.png"
   },
   {
     "id": "geogebra",
     "name": "GeoGebra",
     "url": "https://www.geogebra.org/graphing",
-    "tags": [
-      "math",
-      "tools"
-    ],
+    "tags": ["math", "tools"],
     "thumb": "imgs/apps/geogebra.jpg"
   },
   {
     "id": "vsc",
     "name": "VS Code Web",
     "url": "https://vscode.dev/",
-    "tags": [
-      "dev",
-      "tools"
-    ],
+    "tags": ["dev", "tools"],
     "thumb": "imgs/apps/vsc.png"
   },
   {
     "id": "squoosh",
     "name": "Squoosh",
     "url": "https://squoosh.app/",
-    "tags": [
-      "image",
-      "tools"
-    ],
+    "tags": ["image", "tools"],
     "thumb": "imgs/apps/squoosh.png"
   },
   {
     "id": "notion",
     "name": "Notion",
     "url": "https://www.notion.so/",
-    "tags": [
-      "work",
-      "docs"
-    ],
+    "tags": ["work", "docs"],
     "thumb": "imgs/apps/notion.jpg"
   },
   {
     "id": "wikipedia",
     "name": "Wikipedia",
     "url": "https://www.wikipedia.org/",
-    "tags": [
-      "reference",
-      "reading"
-    ],
+    "tags": ["reference", "reading"],
     "thumb": "imgs/apps/wikipedia.png"
   }
 ]

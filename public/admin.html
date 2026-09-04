@@ -175,6 +175,51 @@
       color: var(--text-dim);
     }
 
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .chart-card {
+      background: var(--bg-card);
+      border: 1px solid #2a2a30;
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .chart-card h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+    }
+    .chart-card svg { width: 100%; height: 88px; display: block; }
+    .host-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    .host-row span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .host-bar {
+      height: 6px;
+      border-radius: 99px;
+      background: var(--accent);
+      min-width: 2px;
+    }
+    #user-search {
+      width: 100%;
+      margin: 0 0 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #2a2a30;
+      background: var(--bg-input);
+      color: var(--text);
+      font: inherit;
+    }
+
     @media (max-width: 600px) {
       .users-table { font-size: 12px; }
       .users-table th, .users-table td { padding: 8px 8px; }
@@ -196,6 +241,24 @@
       <div class="stat-card"><div class="stat-value" id="stat-signups">-</div><div class="stat-label">Signups (7d)</div></div>
       <div class="stat-card"><div class="stat-value" id="stat-memory">-</div><div class="stat-label">Memory (MB)</div></div>
       <div class="stat-card"><div class="stat-value" id="stat-uptime">-</div><div class="stat-label">Uptime</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-visits">-</div><div class="stat-label">History rows</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-saves">-</div><div class="stat-label">Save slots</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-captcha">-</div><div class="stat-label">CAPTCHA (7d)</div></div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3>Signups · 14 days</h3>
+        <div id="chart-signups"></div>
+      </div>
+      <div class="chart-card">
+        <h3>Visits · 14 days</h3>
+        <div id="chart-visits"></div>
+      </div>
+      <div class="chart-card">
+        <h3>Top hosts · 14 days</h3>
+        <div id="chart-hosts"></div>
+      </div>
     </div>
 
     <div class="section-title" style="margin-top: 32px;">
@@ -231,6 +294,7 @@
     <div class="section-title">
       Users <span class="user-count" id="user-count"></span>
     </div>
+    <input id="user-search" type="search" placeholder="Search users by name or email…" />
     <div id="users-container">
       <p class="loading">Loading users...</p>
     </div>
@@ -253,7 +317,7 @@
       loadDashboard();
     });
 
-    const FEATURES = ["proxy", "games", "apps", "bookmarks", "settings"];
+    const FEATURES = ["proxy", "games", "apps", "ai", "bookmarks", "settings"];
 
     // ---------- 2FA (TOTP) ----------
     async function loadTotp() {
@@ -330,23 +394,73 @@
         document.getElementById("stat-active").textContent = s.activeSessions;
         document.getElementById("stat-signups").textContent = s.recentSignups7d;
         document.getElementById("stat-memory").textContent = s.memoryMB;
+        document.getElementById("stat-visits").textContent = s.historyRows ?? "-";
+        document.getElementById("stat-saves").textContent = s.saves ?? "-";
+        document.getElementById("stat-captcha").textContent = s.captchaEvents7d ?? "-";
         const h = Math.floor(s.uptime / 3600);
         const m = Math.floor((s.uptime % 3600) / 60);
         document.getElementById("stat-uptime").textContent = h > 0 ? `${h}h ${m}m` : `${m}m`;
+        drawSpark("chart-signups", s.signupsByDay || []);
+        drawSpark("chart-visits", s.visitsByDay || []);
+        drawHosts("chart-hosts", s.topHosts || []);
       } catch {}
     }
+
+    function drawSpark(id, rows) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const vals = rows.map((r) => Number(r.count) || 0);
+      const max = Math.max(1, ...vals);
+      const w = 280;
+      const h = 88;
+      const n = Math.max(vals.length, 1);
+      const pts = vals.map((v, i) => {
+        const x = n === 1 ? w / 2 : (i / (n - 1)) * (w - 8) + 4;
+        const y = h - 10 - (v / max) * (h - 24);
+        return `${x},${y}`;
+      }).join(" ");
+      const last = vals[vals.length - 1] || 0;
+      el.innerHTML = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="trend">
+        <polyline fill="none" stroke="#ff9ec4" stroke-width="2.5" points="${pts}" />
+        <text x="${w - 4}" y="14" text-anchor="end" fill="#c9b3c0" font-size="11">${last}</text>
+      </svg>`;
+    }
+
+    function drawHosts(id, rows) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (!rows.length) { el.textContent = "No visits yet"; return; }
+      const max = Math.max(1, ...rows.map((r) => r.count));
+      el.innerHTML = rows.map((r) => {
+        const pct = Math.max(6, Math.round((r.count / max) * 100));
+        const host = String(r.host || "").replace(/[<>]/g, "");
+        return `<div class="host-row"><span title="${host}">${host}</span><div class="host-bar" style="width:${pct}%"></div><b>${r.count}</b></div>`;
+      }).join("");
+    }
+
+    let usersCache = [];
 
     async function loadUsers() {
       const container = document.getElementById("users-container");
       try {
         const res = await fetch("/admin/api/users");
-        const users = await res.json();
-        document.getElementById("user-count").textContent = `(${users.length})`;
-        renderUsersTable(users, container);
+        usersCache = await res.json();
+        document.getElementById("user-count").textContent = `(${usersCache.length})`;
+        renderFilteredUsers();
       } catch {
         container.innerHTML = '<p class="loading">Failed to load users</p>';
       }
     }
+
+    function renderFilteredUsers() {
+      const q = (document.getElementById("user-search")?.value || "").trim().toLowerCase();
+      const filtered = !q ? usersCache : usersCache.filter((u) =>
+        `${u.displayName} ${u.email}`.toLowerCase().includes(q)
+      );
+      renderUsersTable(filtered, document.getElementById("users-container"));
+    }
+
+    document.getElementById("user-search")?.addEventListener("input", renderFilteredUsers);
 
     async function loadLog() {
       const container = document.getElementById("log-container");
@@ -453,13 +567,42 @@
         tr.appendChild(tdLast);
 
         const tdAction = document.createElement("td");
+        const actions = document.createElement("div");
+        actions.style.display = "flex";
+        actions.style.gap = "6px";
+        actions.style.flexWrap = "wrap";
         if (user.role !== "dev") {
+          const promo = document.createElement("button");
+          promo.className = "btn-sm";
+          promo.textContent = "Make dev";
+          promo.addEventListener("click", async () => {
+            if (!confirm(`Promote ${user.email} to dev?`)) return;
+            await fetch(`/admin/api/users/${user.id}/role`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ role: "dev" }),
+            });
+            loadUsers();
+            loadLog();
+          });
+          const kick = document.createElement("button");
+          kick.className = "btn-sm";
+          kick.textContent = "Kick";
+          kick.title = "Revoke sessions";
+          kick.addEventListener("click", async () => {
+            await fetch(`/admin/api/users/${user.id}/sessions`, { method: "DELETE" });
+            loadStats();
+            loadLog();
+          });
           const delBtn = document.createElement("button");
           delBtn.className = "btn-sm danger";
           delBtn.textContent = "Delete";
           delBtn.addEventListener("click", () => deleteUserAction(user.id, user.email));
-          tdAction.appendChild(delBtn);
+          actions.appendChild(promo);
+          actions.appendChild(kick);
+          actions.appendChild(delBtn);
         }
+        tdAction.appendChild(actions);
         tr.appendChild(tdAction);
 
         tbody.appendChild(tr);
