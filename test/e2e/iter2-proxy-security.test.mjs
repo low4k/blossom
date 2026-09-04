@@ -129,14 +129,32 @@ await step("search", "resolveInput: search term / bare domain / full URL", async
       bareDomain: m.resolveInput("example.com"),
       fullUrl: m.resolveInput("https://example.com/page?a=1"),
       empty: m.resolveInput("   "),
+      bangYt: m.resolveInput("!yt never gonna"),
+      localhost: m.resolveInput("localhost:3000"),
     };
   });
   const ok =
     res.searchTerm === "https://duckduckgo.com/?q=" + encodeURIComponent("cute cats") &&
     res.bareDomain === "https://example.com/" &&
     res.fullUrl === "https://example.com/page?a=1" &&
-    res.empty === null;
+    res.empty === null &&
+    res.bangYt === "https://www.youtube.com/results?search_query=" + encodeURIComponent("never gonna") &&
+    res.localhost === "http://localhost:3000/";
   record("search", "resolveInput resolution rules", ok, JSON.stringify(res));
+});
+
+await step("search", "omnibox suggests catalog apps and bangs", async () => {
+  const page = globalThis.__proxyPage;
+  await page.fill("#search-input", "wiki");
+  await page.waitForTimeout(250);
+  const wiki = await page.evaluate(() => [...document.querySelectorAll("#search-suggest [role=option]")].map((el) => el.textContent));
+  record("search", "suggestions include Wikipedia", wiki.some((t) => /wikipedia/i.test(t)), JSON.stringify(wiki));
+
+  await page.fill("#search-input", "!yt");
+  await page.waitForTimeout(200);
+  const bangs = await page.evaluate(() => [...document.querySelectorAll("#search-suggest [role=option]")].map((el) => el.textContent));
+  record("search", "bang shortcuts appear", bangs.some((t) => /!yt/i.test(t)), JSON.stringify(bangs));
+  await page.fill("#search-input", "");
 });
 
 await step("proxy", "navigate to example.com through the proxy", async () => {

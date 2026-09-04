@@ -1,10 +1,10 @@
 
 
 import { registerSW } from "./register-sw.js";
-import { resolveInput } from "./search.js";
+import { resolveInput, getSearchEngineInfo, cycleSearchEngine } from "./search.js";
 import { applyCloak } from "./cloak.js";
 import { initPanic } from "./panic.js";
-import { loadGames, filterGames, getAllTags, toggleFavorite, isFavorite, recordGamePlayed, getRecentGames, getFavorites, getGameById, hydrateFavorites, hydrateRecents } from "./games.js";
+import { loadGames, filterGames, getAllTags, toggleFavorite, isFavorite, recordGamePlayed, getRecentGames, getFavorites, getGameById, hydrateFavorites, hydrateRecents, getGames } from "./games.js";
 import { getBookmarks, addBookmark, removeBookmark, isBookmarked, syncBookmarksFromServer } from "./bookmarks.js";
 import { getHistory, addToHistory, clearHistory, updateHistoryTitle, syncHistoryFromServer } from "./history.js";
 import { initMirrors } from "./mirrors.js";
@@ -12,6 +12,7 @@ import { initSettings } from "./settings.js";
 import { initVaultSync } from "./vault.js";
 import { startSaveSession, endSaveSession, restoreSave, saveIdForUrl, flushSaveKeepalive, syncSave, bindSaveFrame, loadCatalogPrefs, scheduleCatalogPrefs } from "./saves.js";
 import { loadApps, getApps, filterApps, getAppTags, toggleAppFavorite, isAppFavorite, recordAppUsed, getRecentApps, getAppFavorites, getAppById, hydrateAppFavorites, hydrateAppRecents } from "./apps.js";
+import { bindOmnibox } from "./suggest.js";
 
 let config = {};
 let scramjet = null;
@@ -462,14 +463,55 @@ async function navigateLocal(absUrl, catalogId = null) {
   setTimeout(() => { if (loadingOverlay) loadingOverlay.hidden = true; }, 8000);
 }
 
+function catalogSources() {
+  return {
+    history: getHistory(),
+    bookmarks: getBookmarks(),
+    games: getGames(),
+    apps: getApps(),
+  };
+}
+
+function refreshEngineChip() {
+  const chip = document.getElementById("search-engine-chip");
+  if (!chip) return;
+  const info = getSearchEngineInfo();
+  chip.textContent = info.short;
+  chip.title = `Search with ${info.label} (click to switch)`;
+}
+
 function wireSearch() {
   const form = document.getElementById("search-form");
   const input = document.getElementById("search-input");
+  const chip = document.getElementById("search-engine-chip");
+
+  bindOmnibox({
+    input,
+    list: document.getElementById("search-suggest"),
+    clearBtn: document.getElementById("search-clear"),
+    getSources: catalogSources,
+    onNavigate: (url, catalogId) => navigateTo(url, catalogId),
+  });
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     navigateTo(input.value);
   });
+
+  if (chip) {
+    chip.addEventListener("click", () => {
+      cycleSearchEngine();
+      const select = document.getElementById("setting-search-engine");
+      if (select) select.value = getSearchEngineInfo().template;
+      refreshEngineChip();
+      const list = document.getElementById("search-suggest");
+      if (list && !list.hidden) {
+        input.dispatchEvent(new Event("input"));
+      }
+    });
+  }
+  refreshEngineChip();
+  window.addEventListener("blossom-search-engine", refreshEngineChip);
 }
 
 function wireQuickLinks() {
@@ -958,8 +1000,14 @@ function wireProxyToolbar() {
   });
 
   const urlInput = document.getElementById("proxy-url-input");
+  bindOmnibox({
+    input: urlInput,
+    list: document.getElementById("proxy-suggest"),
+    getSources: catalogSources,
+    onNavigate: (url, catalogId) => navigateTo(url, catalogId),
+  });
   urlInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && document.getElementById("proxy-suggest")?.hidden) {
       e.preventDefault();
       const val = urlInput.value.trim();
       if (!val) return;

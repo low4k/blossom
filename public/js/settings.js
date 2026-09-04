@@ -24,5 +24,8 @@ export function initSettings() {
 
   const searchSelect = document.getElementById("setting-search-engine");
   searchSelect.value = getSearchEngine();
-  searchSelect.addEventListener("change", () => setSearchEngine(searchSelect.value));
+  searchSelect.addEventListener("change", () => {
+    setSearchEngine(searchSelect.value);
+    window.dispatchEvent(new Event("blossom-search-engine"));
+  });
 }
