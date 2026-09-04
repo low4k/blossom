@@ -33,6 +33,12 @@ export function getCurrentCloak() {
   return currentCloak;
 }
 
+export function cloakPreview(name) {
+  const cloak = CLOAKS[name];
+  if (!cloak) return { title: "Blossom", favicon: "" };
+  return { title: cloak.title, favicon: cloak.favicon };
+}
+
 function setFavicon(url) {
   let link = document.querySelector("link[rel*='icon']");
   if (!link) {

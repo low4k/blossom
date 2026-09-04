@@ -22,6 +22,8 @@
     try {
       var t = localStorage.getItem("blossom-theme");
       document.documentElement.dataset.theme = t === "dark" ? "dark" : "light";
+      if (localStorage.getItem("blossom-calm") === "1") document.documentElement.classList.add("calm");
+      if (localStorage.getItem("blossom-radius") === "sharp") document.documentElement.classList.add("sharp");
     } catch (e) { document.documentElement.dataset.theme = "light"; }
   </script>
 </head>
@@ -203,6 +205,10 @@
 
     <main id="ai-view" hidden>
       <div class="ai-aurora" aria-hidden="true"></div>
+      <div class="ai-aurora ai-aurora-2" aria-hidden="true"></div>
+      <div class="ai-sparkles" aria-hidden="true"></div>
+      <div class="ai-grain" aria-hidden="true"></div>
+      <div id="ai-drop" class="ai-drop" hidden>Drop an image or file</div>
       <aside class="ai-sidebar" id="ai-sidebar">
         <div class="ai-brand">
           <span class="ai-mark" aria-hidden="true">
@@ -212,11 +218,16 @@
             <strong>Chats</strong>
             <span>Saved on this device</span>
           </div>
+          <button id="ai-sidebar-collapse" class="ai-icon-btn ai-hide-mobile" type="button" title="Collapse sidebar" aria-label="Collapse sidebar">‹</button>
         </div>
         <button id="ai-new" class="ai-new" type="button">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
           New chat
         </button>
+        <label class="ai-search-wrap">
+          <span class="sr-only">Search chats</span>
+          <input id="ai-search" type="search" placeholder="Search chats…" autocomplete="off" />
+        </label>
         <ul id="ai-chat-list" class="ai-chat-list"></ul>
       </aside>
       <section class="ai-main">
@@ -230,31 +241,55 @@
           <div class="ai-header-copy">
             <h1>Blossom AI</h1>
             <p id="ai-model-label" class="ai-pill">Blossom AI · offline</p>
+            <p id="ai-status" class="ai-status" hidden></p>
           </div>
+          <button id="ai-share" class="ai-ghost" type="button">Share</button>
           <button id="ai-export" class="ai-ghost" type="button">Export</button>
+          <button id="ai-minimize" class="ai-ghost ai-hide-mobile" type="button" title="Minimize">Minimize</button>
         </header>
         <div id="ai-empty" class="ai-empty">
           <div class="ai-empty-orb" aria-hidden="true"></div>
           <p class="ai-empty-kicker">夜桜 · night blossom</p>
           <h2>Ask anything. It stays here.</h2>
-          <p class="ai-empty-sub">A local chat surface — no model is wired yet, so replies are a stand-in. History, copy, and export already work.</p>
+          <p class="ai-empty-sub">A local chat surface — no model is wired yet, so replies are a stand-in. History, copy, voice, and attachments already work on this device.</p>
           <div id="ai-starters" class="ai-starters"></div>
         </div>
-        <div id="ai-messages" class="ai-messages" hidden></div>
+        <div id="ai-thread" class="ai-thread" hidden>
+          <div id="ai-messages" class="ai-messages" hidden></div>
+          <button id="ai-jump" class="ai-jump" type="button" hidden>Jump to latest</button>
+        </div>
+        <div id="ai-chips" class="ai-chips" hidden></div>
         <form id="ai-composer" class="ai-composer">
+          <div id="ai-pending" class="ai-pending" hidden></div>
           <div class="ai-composer-shell">
-            <button type="button" id="ai-attach" class="ai-icon-btn" title="Attach (coming soon)" aria-label="Attach">
+            <button type="button" id="ai-attach" class="ai-icon-btn" title="Attach image or file" aria-label="Attach">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.4 11.6l-8.5 8.5a6 6 0 01-8.5-8.5l9-9a4 4 0 015.7 5.7l-9.2 9.1a2 2 0 01-2.8-2.8l8.1-8.2"/></svg>
             </button>
+            <input id="ai-attach-input" type="file" hidden accept="image/png,image/jpeg,image/gif,image/webp,text/plain,application/pdf" multiple />
             <textarea id="ai-input" rows="1" placeholder="Message Blossom AI…" autocomplete="off"></textarea>
+            <span id="ai-count" class="ai-count" hidden></span>
+            <button type="button" id="ai-voice" class="ai-icon-btn" title="Voice input" aria-label="Voice input">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg>
+            </button>
             <button type="button" id="ai-stop" class="ai-stop" hidden>Stop</button>
             <button type="submit" id="ai-send" class="ai-send" aria-label="Send">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg>
             </button>
           </div>
-          <p class="ai-disclaimer">Not connected to a model. Chats stay in this browser.</p>
+          <p class="ai-disclaimer">Not connected to a model. Chats stay in this browser. Images never leave the device.</p>
         </form>
       </section>
+      <aside id="ai-artifact" class="ai-artifact" hidden>
+        <header>
+          <h2 id="ai-artifact-title">Canvas</h2>
+          <button id="ai-artifact-close" type="button" class="ai-ghost">Close</button>
+        </header>
+        <div id="ai-artifact-body" class="ai-artifact-body"></div>
+      </aside>
+      <div id="ai-lightbox" class="ai-lightbox" hidden>
+        <button type="button" data-close-lightbox class="ai-lightbox-x" aria-label="Close image">✕</button>
+        <img alt="" />
+      </div>
     </main>
 
     <main id="yt-view" hidden>
@@ -269,21 +304,37 @@
           <button type="submit">Search</button>
         </form>
       </header>
+      <div id="yt-chips" class="yt-chips"></div>
       <div id="yt-hero" class="yt-hero">
         <p class="yt-kicker">Watch</p>
         <h1>YouTube, without the bot wall</h1>
         <p>Official YouTube and Invidious both break in the proxy. This player talks to public Piped APIs through the same tunnel, then plays the video here.</p>
+        <div id="yt-recents" class="yt-recents" hidden></div>
       </div>
       <div id="yt-stage" class="yt-stage" hidden>
-        <div class="yt-player-wrap">
-          <video id="yt-video" controls playsinline></video>
+        <div class="yt-player-col">
+          <div class="yt-player-wrap">
+            <video id="yt-video" controls playsinline></video>
+          </div>
+          <div class="yt-tools">
+            <select id="yt-quality" hidden aria-label="Quality"></select>
+            <button type="button" id="yt-pip" class="yt-tool">PiP</button>
+            <button type="button" id="yt-copy" class="yt-tool">Copy link</button>
+            <button type="button" id="yt-desc-toggle" class="yt-tool">Description</button>
+          </div>
+          <div class="yt-meta">
+            <h2 id="yt-title">YouTube</h2>
+            <p id="yt-sub"></p>
+            <p id="yt-desc" class="yt-desc" hidden></p>
+          </div>
         </div>
-        <div class="yt-meta">
-          <h2 id="yt-title">YouTube</h2>
-          <p id="yt-sub"></p>
-        </div>
+        <div id="yt-related" class="yt-related" hidden></div>
       </div>
       <p id="yt-status" class="yt-status" hidden></p>
+      <div id="yt-fail" class="yt-fail" hidden>
+        <button type="button" id="yt-retry" class="btn">Retry stream</button>
+        <button type="button" id="yt-embed" class="btn btn-secondary">Open lighter embed</button>
+      </div>
       <div id="yt-results" class="yt-results"></div>
     </main>
 
@@ -366,76 +417,138 @@
         <button class="panel-close" data-close="settings-panel" aria-label="Close settings panel">✕</button>
       </div>
       <div class="settings-body">
-        <div class="setting-group">
-          <label>Tab Cloak</label>
-          <select id="setting-cloak">
-            <option value="google">Google</option>
-            <option value="classroom">Google Classroom</option>
-            <option value="drive">Google Drive</option>
-            <option value="canvas">Canvas</option>
-            <option value="khan">Khan Academy</option>
-            <option value="none">Off</option>
-          </select>
-        </div>
-        <div class="setting-group">
-          <label>About:Blank Cloaking</label>
-          <p class="setting-hint">Opens proxy in an about:blank popup. URL bar shows about:blank.</p>
-          <button id="setting-abcloak" class="btn">Launch in about:blank</button>
-        </div>
-        <div class="setting-group">
-          <label>Panic Key</label>
-          <p class="setting-hint">Press this key to instantly redirect away.</p>
-          <input id="setting-panic-key" type="text" value="`" maxlength="1" class="key-input" />
-        </div>
-        <div class="setting-group">
-          <label>Panic URL</label>
-          <select id="setting-panic-url">
-            <option value="https://classroom.google.com">Google Classroom</option>
-            <option value="https://www.google.com">Google</option>
-            <option value="https://www.khanacademy.org">Khan Academy</option>
-            <option value="https://canvas.instructure.com">Canvas</option>
-          </select>
-        </div>
-        <div class="setting-group">
-          <label>Search Engine</label>
-          <select id="setting-search-engine">
-            <option value="https://duckduckgo.com/?q=%s">DuckDuckGo (recommended)</option>
-            <option value="https://www.google.com/search?q=%s">Google</option>
-            <option value="https://www.bing.com/search?q=%s">Bing</option>
-          </select>
-        </div>
-        <hr />
-        <div class="setting-group">
-          <label>Site Sessions</label>
-          <p class="setting-hint" id="vault-status">Checking…</p>
-          <p class="setting-hint">When a site checks that you're human, Blossom saves the session so you are not asked again.</p>
-          <button id="vault-clear" class="btn btn-secondary">Forget saved sessions</button>
-        </div>
-        <hr />
-        <div class="setting-group">
-          <label>Game & App Saves</label>
-          <p class="setting-hint" id="saves-status">Checking…</p>
-          <ul id="saves-list" class="saves-list" hidden></ul>
-          <p class="setting-hint">Progress for catalog games and apps is stored on your account.</p>
-          <button id="saves-clear" class="btn btn-secondary">Forget all game saves</button>
-        </div>
-        <hr />
-        <div class="setting-group">
-          <label>Account</label>
-          <p class="setting-hint" id="settings-user-email"></p>
-          <button id="setting-logout" class="btn btn-secondary">Sign Out</button>
-        </div>
-        <hr />
-        <div class="setting-group">
-          <label>Status</label>
-          <div id="status-widget">
-            <span id="status-dot" class="dot dot-checking"></span>
-            <span id="status-text">Checking...</span>
+        <label class="settings-filter-wrap">
+          <span class="sr-only">Filter settings</span>
+          <input id="settings-filter" type="search" placeholder="Search settings…" autocomplete="off" />
+        </label>
+
+        <section class="setting-section" data-section="appearance theme dark light motion radius">
+          <h3 class="setting-heading">Appearance</h3>
+          <div class="setting-group">
+            <label for="setting-theme">Theme</label>
+            <select id="setting-theme">
+              <option value="light">Light (cream dawn)</option>
+              <option value="dark">Dark (night blossom)</option>
+            </select>
           </div>
-        </div>
-        <div class="setting-group">
-          <p class="version-text">v<span id="blossom-version">1.0.0</span></p>
-        </div>
+          <div class="setting-group">
+            <label for="setting-radius">Corners</label>
+            <select id="setting-radius">
+              <option value="rounded">Rounded</option>
+              <option value="sharp">Sharp</option>
+            </select>
+          </div>
+          <div class="setting-group">
+            <label class="setting-check">
+              <input id="setting-calm" type="checkbox" />
+              Reduce motion
+            </label>
+            <p class="setting-hint">Overrides animations even if your OS allows them.</p>
+          </div>
+        </section>
+
+        <section class="setting-section" data-section="cloak tab disguise favicon classroom">
+          <h3 class="setting-heading">Cloak</h3>
+          <div class="setting-group">
+            <label>Tab Cloak</label>
+            <select id="setting-cloak">
+              <option value="google">Google</option>
+              <option value="classroom">Google Classroom</option>
+              <option value="drive">Google Drive</option>
+              <option value="canvas">Canvas</option>
+              <option value="khan">Khan Academy</option>
+              <option value="none">Off</option>
+            </select>
+            <div id="cloak-preview" class="cloak-preview">
+              <img id="cloak-preview-icon" alt="" width="16" height="16" />
+              <span id="cloak-preview-title">Google</span>
+            </div>
+          </div>
+          <div class="setting-group">
+            <label>About:Blank Cloaking</label>
+            <p class="setting-hint">Opens proxy in an about:blank popup. URL bar shows about:blank.</p>
+            <button id="setting-abcloak" class="btn">Launch in about:blank</button>
+          </div>
+        </section>
+
+        <section class="setting-section" data-section="panic key escape redirect">
+          <h3 class="setting-heading">Panic</h3>
+          <div class="setting-group">
+            <label>Panic Key</label>
+            <p class="setting-hint">Press this key to instantly redirect away.</p>
+            <input id="setting-panic-key" type="text" value="`" maxlength="1" class="key-input" />
+          </div>
+          <div class="setting-group">
+            <label>Panic URL</label>
+            <select id="setting-panic-url">
+              <option value="https://classroom.google.com">Google Classroom</option>
+              <option value="https://www.google.com">Google</option>
+              <option value="https://www.khanacademy.org">Khan Academy</option>
+              <option value="https://canvas.instructure.com">Canvas</option>
+              <option value="__custom__">Custom URL…</option>
+            </select>
+            <input id="setting-panic-custom" type="text" hidden placeholder="https://…" autocomplete="off" />
+          </div>
+        </section>
+
+        <section class="setting-section" data-section="search engine duckduckgo google bing">
+          <h3 class="setting-heading">Search</h3>
+          <div class="setting-group">
+            <label>Search Engine</label>
+            <select id="setting-search-engine">
+              <option value="https://duckduckgo.com/?q=%s">DuckDuckGo (recommended)</option>
+              <option value="https://www.google.com/search?q=%s">Google</option>
+              <option value="https://www.bing.com/search?q=%s">Bing</option>
+            </select>
+          </div>
+        </section>
+        <section class="setting-section" data-section="sessions captcha vault cookies">
+          <h3 class="setting-heading">Sessions</h3>
+          <div class="setting-group">
+            <label>Site Sessions</label>
+            <p class="setting-hint" id="vault-status">Checking…</p>
+            <p class="setting-hint">When a site checks that you're human, Blossom saves the session so you are not asked again.</p>
+            <button id="vault-clear" class="btn btn-secondary">Forget saved sessions</button>
+          </div>
+        </section>
+        <section class="setting-section" data-section="saves games apps progress">
+          <h3 class="setting-heading">Saves</h3>
+          <div class="setting-group">
+            <label>Game & App Saves</label>
+            <p class="setting-hint" id="saves-status">Checking…</p>
+            <ul id="saves-list" class="saves-list" hidden></ul>
+            <p class="setting-hint">Progress for catalog games and apps is stored on your account.</p>
+            <button id="saves-clear" class="btn btn-secondary">Forget all game saves</button>
+          </div>
+        </section>
+        <section class="setting-section" data-section="ai chat history clear">
+          <h3 class="setting-heading">Blossom AI</h3>
+          <div class="setting-group">
+            <label>Local chats</label>
+            <p class="setting-hint">Threads live in this browser only. Clearing them cannot be undone.</p>
+            <button id="setting-clear-ai" class="btn btn-secondary" type="button">Clear all AI chats</button>
+          </div>
+        </section>
+        <section class="setting-section" data-section="account logout email">
+          <h3 class="setting-heading">Account</h3>
+          <div class="setting-group">
+            <label>Account</label>
+            <p class="setting-hint" id="settings-user-email"></p>
+            <button id="setting-logout" class="btn btn-secondary">Sign Out</button>
+          </div>
+        </section>
+        <section class="setting-section" data-section="status version health">
+          <div class="setting-group">
+            <label>Status</label>
+            <div id="status-widget">
+              <span id="status-dot" class="dot dot-checking"></span>
+              <span id="status-text">Checking...</span>
+            </div>
+          </div>
+          <div class="setting-group">
+            <p class="version-text">v<span id="blossom-version">1.0.0</span></p>
+          </div>
+        </section>
       </div>
     </div>
 
@@ -471,6 +584,11 @@
     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5-5.9-3.2-5.9 3.2 1.2-6.5L2.5 9.4l6.6-.9z"/></svg>
     <span>Star on GitHub</span>
   </a>
+
+  <button id="ai-fab" class="ai-fab" type="button" title="Blossom AI" aria-label="Open Blossom AI">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.6 4.2L18 9l-4.4 1.8L12 15l-1.6-4.2L6 9l4.4-1.8L12 3z"/></svg>
+    <span class="ai-fab-badge" hidden>1</span>
+  </button>
 
   <canvas id="petal-canvas" aria-hidden="true"></canvas>
 

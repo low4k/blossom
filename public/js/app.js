@@ -14,10 +14,7 @@ import { startSaveSession, endSaveSession, restoreSave, saveIdForUrl, flushSaveK
 import { loadApps, getApps, filterApps, getAppTags, toggleAppFavorite, isAppFavorite, recordAppUsed, getRecentApps, getAppFavorites, getAppById, hydrateAppFavorites, hydrateAppRecents } from "./apps.js";
 import { bindOmnibox } from "./suggest.js";
 import { rewriteDestination, skipSaveFor, isWatchPath } from "./dest.js";
-import {
-  listChats, getChat, createChat, deleteChat, appendMessage, replaceLastAssistant,
-  exportChat, offlineReply, renderMarkdown, STARTERS,
-} from "./ai.js";
+import { wireAi, onAiRoute } from "./ai-ui.js";
 import { parseRoute, hrefFor } from "./routes.js";
 import { spring, withViewTransition } from "./motion.js";
 import { createWatchController } from "./yt-player.js";
@@ -81,7 +78,7 @@ async function init() {
     const hide = (id) => { const el = document.getElementById(id); if (el) el.hidden = true; };
     if (f.games === false) hide("btn-games");
     if (f.apps === false) hide("btn-apps");
-    if (f.ai === false) hide("btn-ai");
+    if (f.ai === false) { hide("btn-ai"); hide("ai-fab"); }
     if (f.bookmarks === false) hide("btn-bookmarks");
     if (f.settings === false) hide("btn-settings");
   }
@@ -125,7 +122,7 @@ async function init() {
   wirePanels();
   wireGames();
   wireApps();
-  wireAi();
+  wireAi({ showToast });
   wireHistoryPanel();
   wireProxyToolbar();
   wireAccount();
@@ -497,6 +494,7 @@ function paintRoute(name) {
   const homeView = document.getElementById("home-view");
   hideCatalogViews();
   if (homeView) homeView.style.display = name === "home" ? "" : "none";
+  if (name !== "ai") onAiRoute(false);
   if (name !== "watch") {
     try { document.getElementById("yt-video")?.pause(); } catch {}
   }
@@ -520,6 +518,7 @@ function paintRoute(name) {
   } else if (name === "ai") {
     const aiView = document.getElementById("ai-view");
     if (aiView) aiView.hidden = false;
+    onAiRoute(true);
   } else if (name === "watch") {
     const ytView = document.getElementById("yt-view");
     if (ytView) ytView.hidden = false;
@@ -1317,250 +1316,6 @@ function updateBookmarkButton(url) {
   } else {
     btn.classList.remove("bookmarked");
   }
-}
-
-function wireAi() {
-  const form = document.getElementById("ai-composer");
-  const input = document.getElementById("ai-input");
-  const sendBtn = document.getElementById("ai-send");
-  const stopBtn = document.getElementById("ai-stop");
-  const attach = document.getElementById("ai-attach");
-  const exportBtn = document.getElementById("ai-export");
-  const newBtn = document.getElementById("ai-new");
-  const starters = document.getElementById("ai-starters");
-  const empty = document.getElementById("ai-empty");
-  const sidebar = document.getElementById("ai-sidebar");
-  const toggle = document.getElementById("ai-sidebar-toggle");
-
-  let activeId = null;
-  let typing = null;
-
-  toggle?.addEventListener("click", () => sidebar?.classList.toggle("open"));
-
-  function paintList() {
-    const ul = document.getElementById("ai-chat-list");
-    if (!ul) return;
-    ul.innerHTML = "";
-    for (const c of listChats()) {
-      const li = document.createElement("li");
-      li.className = c.id === activeId ? "active" : "";
-      const open = document.createElement("button");
-      open.type = "button";
-      open.className = "ai-chat-open";
-      open.textContent = c.title;
-      open.addEventListener("click", () => {
-        sidebar?.classList.remove("open");
-        openChat(c.id);
-      });
-      const del = document.createElement("button");
-      del.type = "button";
-      del.className = "ai-chat-del";
-      del.setAttribute("aria-label", "Delete chat");
-      del.textContent = "✕";
-      del.addEventListener("click", (e) => {
-        e.stopPropagation();
-        deleteChat(c.id);
-        if (activeId === c.id) activeId = listChats()[0]?.id || createChat().id;
-        openChat(activeId);
-      });
-      li.appendChild(open);
-      li.appendChild(del);
-      ul.appendChild(li);
-    }
-  }
-
-  function syncEmpty(chat) {
-    const isEmpty = !chat?.messages?.length;
-    if (empty) empty.hidden = !isEmpty;
-    const box = document.getElementById("ai-messages");
-    if (box) box.hidden = isEmpty;
-    if (starters) starters.hidden = !isEmpty;
-  }
-
-  function msgRow(msg, { live = false } = {}) {
-    const row = document.createElement("article");
-    row.className = `ai-msg ai-msg-${msg.role}`;
-    row.innerHTML = `
-      <div class="ai-avatar" aria-hidden="true">${msg.role === "user" ? "you" : "咲"}</div>
-      <div class="ai-msg-stack">
-        <div class="ai-msg-role">${msg.role === "user" ? "You" : "Blossom"}</div>
-        <div class="ai-msg-body"></div>
-        <div class="ai-msg-tools"></div>
-      </div>`;
-    const body = row.querySelector(".ai-msg-body");
-    body.innerHTML = renderMarkdown(msg.content) + (live ? '<span class="ai-caret"></span>' : "");
-    const tools = row.querySelector(".ai-msg-tools");
-    const copy = document.createElement("button");
-    copy.type = "button";
-    copy.textContent = "Copy";
-    copy.addEventListener("click", async () => {
-      try { await navigator.clipboard.writeText(msg.content); showToast("Copied"); } catch {}
-    });
-    tools.appendChild(copy);
-    if (msg.role === "assistant" && !live) {
-      const regen = document.createElement("button");
-      regen.type = "button";
-      regen.textContent = "Regenerate";
-      regen.addEventListener("click", () => regenerate());
-      tools.appendChild(regen);
-    }
-    return row;
-  }
-
-  function paintMessages() {
-    const box = document.getElementById("ai-messages");
-    const chat = getChat(activeId);
-    if (!box || !chat) return;
-    box.innerHTML = "";
-    for (const msg of chat.messages) box.appendChild(msgRow(msg));
-    box.scrollTop = box.scrollHeight;
-    syncEmpty(chat);
-  }
-
-  function openChat(id) {
-    activeId = id;
-    paintList();
-    paintMessages();
-  }
-
-  function ensureChat() {
-    if (activeId && getChat(activeId)) return;
-    const existing = listChats()[0];
-    activeId = existing ? existing.id : createChat().id;
-  }
-
-  function setBusy(on) {
-    if (sendBtn) sendBtn.disabled = on;
-    if (stopBtn) stopBtn.hidden = !on;
-    if (input) input.disabled = on;
-    document.getElementById("ai-view")?.classList.toggle("ai-busy", on);
-  }
-
-  function typeReply(full) {
-    return new Promise((resolve) => {
-      const box = document.getElementById("ai-messages");
-      appendMessage(activeId, "assistant", "");
-      const row = msgRow({ role: "assistant", content: "" }, { live: true });
-      box?.appendChild(row);
-      spring(row, [
-        { opacity: 0, transform: "translateY(12px) scale(0.98)" },
-        { opacity: 1, transform: "none" },
-      ], { duration: 420 });
-      const body = row.querySelector(".ai-msg-body");
-      let i = 0;
-      let acc = "";
-      setBusy(true);
-      const tick = () => {
-        const take = full.length > 80 ? 2 : 1;
-        acc += full.slice(i, i + take);
-        i += take;
-        replaceLastAssistant(activeId, acc);
-        if (body) body.innerHTML = renderMarkdown(acc) + (i < full.length ? '<span class="ai-caret"></span>' : "");
-        if (box) box.scrollTop = box.scrollHeight;
-        if (i >= full.length) {
-          typing = null;
-          setBusy(false);
-          paintMessages();
-          resolve();
-          return;
-        }
-        typing = setTimeout(tick, 12);
-      };
-      tick();
-    });
-  }
-
-  function stopTyping() {
-    if (typing) clearTimeout(typing);
-    typing = null;
-    setBusy(false);
-    paintMessages();
-  }
-
-  async function sendText(text) {
-    const q = String(text || "").trim();
-    if (!q || typing) return;
-    ensureChat();
-    appendMessage(activeId, "user", q);
-    paintList();
-    const chat = getChat(activeId);
-    syncEmpty(chat);
-    const box = document.getElementById("ai-messages");
-    if (box && chat) {
-      if (box.hidden) box.hidden = false;
-      const row = msgRow({ role: "user", content: q });
-      box.appendChild(row);
-      spring(row, [
-        { opacity: 0, transform: "translateY(14px) scale(0.97)" },
-        { opacity: 1, transform: "none" },
-      ], { duration: 380 });
-      box.scrollTop = box.scrollHeight;
-    }
-    if (input) { input.value = ""; input.style.height = "auto"; }
-    spring(sendBtn, [{ transform: "scale(0.88)" }, { transform: "scale(1)" }], { duration: 280 });
-    await typeReply(offlineReply());
-  }
-
-  async function regenerate() {
-    const chat = getChat(activeId);
-    if (!chat) return;
-    const lastUser = [...chat.messages].reverse().find((m) => m.role === "user");
-    if (!lastUser) return;
-    stopTyping();
-    replaceLastAssistant(activeId, "");
-    paintMessages();
-    await typeReply(offlineReply());
-  }
-
-  form?.addEventListener("submit", (e) => {
-    e.preventDefault();
-    sendText(input?.value);
-  });
-  input?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendText(input.value);
-    }
-  });
-  input?.addEventListener("input", () => {
-    input.style.height = "auto";
-    input.style.height = Math.min(input.scrollHeight, 160) + "px";
-  });
-  stopBtn?.addEventListener("click", stopTyping);
-  attach?.addEventListener("click", () => showToast("Attachments are not connected yet."));
-  exportBtn?.addEventListener("click", () => {
-    const data = exportChat(activeId);
-    if (!data) return;
-    const blob = new Blob([data], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "blossom-ai-chat.json";
-    a.click();
-    URL.revokeObjectURL(a.href);
-  });
-  newBtn?.addEventListener("click", () => {
-    stopTyping();
-    openChat(createChat().id);
-    spring(newBtn, [{ transform: "scale(0.96)" }, { transform: "scale(1)" }], { duration: 220 });
-  });
-  if (starters) {
-    starters.innerHTML = "";
-    STARTERS.forEach((s, i) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "ai-starter";
-      b.style.setProperty("--i", String(i));
-      b.innerHTML = `<span>${s.label}</span><small>Tap to try</small>`;
-      b.addEventListener("click", () => sendText(s.prompt));
-      starters.appendChild(b);
-    });
-  }
-  const modelEl = document.getElementById("ai-model-label");
-  if (modelEl) modelEl.textContent = "Blossom AI · offline";
-
-  ensureChat();
-  paintList();
-  paintMessages();
 }
 
 function wireAccount() {

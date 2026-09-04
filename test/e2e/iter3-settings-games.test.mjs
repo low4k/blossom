@@ -36,10 +36,12 @@ try {
     await page.locator("#setting-cloak").waitFor({ state: "visible" });
     await page.locator("#setting-cloak").selectOption("classroom", { force: true });
     await page.waitForTimeout(300);
+    const filterOk = await page.evaluate(() => !!document.getElementById("settings-filter"));
     const title = await page.title();
     const favicon = await page.evaluate(() => document.querySelector("link[rel*='icon']")?.href || "");
     await shot(page, "20-settings-cloak");
     record("settings", "cloak applies immediately", title === "Google Classroom" && favicon.includes("classroom.google.com"), `title=${title} favicon=${favicon}`);
+    record("settings", "settings search is present", filterOk);
 
     await page.reload({ waitUntil: "load" });
     await page.waitForTimeout(2500);

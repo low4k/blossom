@@ -1,5 +1,6 @@
 
 export function reduceMotion() {
+  if (document.documentElement.classList.contains("calm")) return true;
   return Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches);
 }
 

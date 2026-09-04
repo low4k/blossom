@@ -36,6 +36,8 @@ try {
       visible: !document.getElementById("ai-view").hidden,
       composer: !!document.getElementById("ai-input"),
       starters: document.querySelectorAll(".ai-starter").length,
+      fab: !!document.getElementById("ai-fab"),
+      search: !!document.getElementById("ai-search"),
     }));
     record("ai", "AI view opens", info.visible && info.composer && info.starters >= 3, JSON.stringify(info));
     record("ai", "AI route is /ai", page.url() === `${base}/ai`, `url=${page.url()}`);
@@ -63,6 +65,8 @@ try {
       path: location.pathname,
       visible: !document.getElementById("yt-view").hidden,
       search: !!document.getElementById("yt-search"),
+      quality: !!document.getElementById("yt-quality"),
+      chips: !!document.getElementById("yt-chips"),
     }));
     record("watch", "YouTube opens local watch view", info.path === "/watch" && info.visible && info.search, JSON.stringify(info));
     await page.click("#yt-back");
