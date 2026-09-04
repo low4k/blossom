@@ -138,7 +138,9 @@ await step("search", "resolveInput: search term / bare domain / full URL", async
     return {
       watch: m.rewriteDestination("https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
       home: m.rewriteDestination("https://youtube.com/"),
+      yewtu: m.rewriteDestination("https://yewtu.be/watch?v=dQw4w9WgXcQ"),
       skip: m.skipSaveFor("https://www.youtube.com/"),
+      skipWatch: m.skipSaveFor("/watch?v=dQw4w9WgXcQ"),
     };
   });
   const ok =
@@ -148,10 +150,22 @@ await step("search", "resolveInput: search term / bare domain / full URL", async
     res.empty === null &&
     res.bangYt === "https://www.youtube.com/results?search_query=" + encodeURIComponent("never gonna") &&
     res.localhost === "http://localhost:3000/" &&
-    dest.watch.includes("yewtu.be/watch?v=dQw4w9WgXcQ") &&
-    dest.home.startsWith("https://yewtu.be") &&
-    dest.skip === true;
+    dest.watch === "/watch?v=dQw4w9WgXcQ" &&
+    dest.home === "/watch" &&
+    dest.yewtu === "/watch?v=dQw4w9WgXcQ" &&
+    dest.skip === true &&
+    dest.skipWatch === true;
+  const routes = await page.evaluate(async () => {
+    const m = await import("/js/routes.js");
+    return {
+      games: m.parseRoute("/games").name,
+      next: m.safeNextPath("/ai"),
+      bad: m.safeNextPath("https://evil.example/x"),
+    };
+  });
+  const routesOk = routes.games === "games" && routes.next === "/ai" && routes.bad === "/";
   record("search", "resolveInput resolution rules", ok, JSON.stringify({ res, dest }));
+  record("search", "SPA route helpers", routesOk, JSON.stringify(routes));
 });
 
 await step("search", "omnibox suggests catalog apps and bangs", async () => {

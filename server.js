@@ -136,7 +136,10 @@ app.use((req, res, next) => {
     if (wantsJson(req) || req.path.startsWith("/admin/api") || req.path.startsWith("/api/")) {
       return res.status(401).json({ error: "Not authenticated" });
     }
-    return res.redirect("/login");
+    const p = req.path.split("?")[0];
+    const spa = p === "/games" || p === "/apps" || p === "/ai" || p === "/watch";
+    const next = spa ? `?next=${encodeURIComponent(p === "/watch" ? p + (req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "") : p)}` : "";
+    return res.redirect("/login" + next);
   }
   req.user = user;
   next();
@@ -281,6 +284,12 @@ app.use(config.baremuxPrefix, express.static(baremuxPath, {
     res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
   }
 }));
+
+// SPA shells must win over the public/games/ directory so /games is the
+// catalog, while /games/snake.html still serves the local game file.
+app.get(["/games", "/games/", "/apps", "/apps/", "/ai", "/ai/", "/watch", "/watch/"], (_req, res) => {
+  res.sendFile(path.join(publicPath, "index.html"));
+});
 
 app.use(express.static(publicPath));
 

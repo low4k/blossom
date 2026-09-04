@@ -2,7 +2,7 @@
   {
     "id": "youtube",
     "name": "YouTube",
-    "url": "https://yewtu.be/",
+    "url": "https://www.youtube.com/",
     "tags": ["video", "social"],
     "thumb": "imgs/apps/youtube.png"
   },

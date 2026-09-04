@@ -38,7 +38,34 @@ try {
       starters: document.querySelectorAll(".ai-starter").length,
     }));
     record("ai", "AI view opens", info.visible && info.composer && info.starters >= 3, JSON.stringify(info));
+    record("ai", "AI route is /ai", page.url() === `${base}/ai`, `url=${page.url()}`);
     await page.click("#ai-back");
+    await page.waitForTimeout(200);
+    record("ai", "back returns to /", page.url() === `${base}/`, `url=${page.url()}`);
+  });
+
+  await step("routes", "games and apps change the URL", async () => {
+    await page.click("#btn-games");
+    await page.waitForTimeout(300);
+    const games = page.url() === `${base}/games` && !(await page.evaluate(() => document.getElementById("games-view").hidden));
+    await page.click("#btn-apps");
+    await page.waitForTimeout(300);
+    const apps = page.url() === `${base}/apps` && !(await page.evaluate(() => document.getElementById("apps-view").hidden));
+    record("routes", "games and apps have their own paths", games && apps, `url=${page.url()}`);
+    await page.click("#apps-back");
+    await page.waitForTimeout(200);
+  });
+
+  await step("watch", "YouTube quick link opens /watch instead of Invidious", async () => {
+    await page.click('.quick-card[data-url="https://youtube.com"]');
+    await page.waitForTimeout(500);
+    const info = await page.evaluate(() => ({
+      path: location.pathname,
+      visible: !document.getElementById("yt-view").hidden,
+      search: !!document.getElementById("yt-search"),
+    }));
+    record("watch", "YouTube opens local watch view", info.path === "/watch" && info.visible && info.search, JSON.stringify(info));
+    await page.click("#yt-back");
     await page.waitForTimeout(200);
   });
 

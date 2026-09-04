@@ -405,7 +405,19 @@
 
   <script>
 
-    fetch("/auth/status").then(r => r.json()).then(s => { if (s.authenticated) window.location.replace("/"); });
+    function safeNext() {
+      const n = new URLSearchParams(location.search).get("next") || "/";
+      if (n === "/games" || n === "/apps" || n === "/ai") return n;
+      if (n.startsWith("/watch")) {
+        try {
+          const u = new URL(n, location.origin);
+          if (u.pathname === "/watch") return u.pathname + u.search;
+        } catch (e) {}
+      }
+      return "/";
+    }
+
+    fetch("/auth/status").then(r => r.json()).then(s => { if (s.authenticated) window.location.replace(safeNext()); });
 
     // Geometric sakura handoff: columns drop in, then the home page lifts them.
     function gateGo(url) {
@@ -466,7 +478,7 @@
           }
           return;
         }
-        gateGo("/");
+        gateGo(safeNext());
       } catch { errEl.textContent = "Network error"; }
       finally { btn.disabled = false; }
     });
@@ -494,7 +506,7 @@
           errEl.textContent = data.error || "Registration failed";
           return;
         }
-        gateGo("/");
+        gateGo(safeNext());
       } catch { errEl.textContent = "Network error"; }
       finally { btn.disabled = false; }
     });

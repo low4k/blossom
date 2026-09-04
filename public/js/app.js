@@ -13,11 +13,14 @@ import { initVaultSync } from "./vault.js";
 import { startSaveSession, endSaveSession, restoreSave, saveIdForUrl, flushSaveKeepalive, syncSave, bindSaveFrame, loadCatalogPrefs, scheduleCatalogPrefs } from "./saves.js";
 import { loadApps, getApps, filterApps, getAppTags, toggleAppFavorite, isAppFavorite, recordAppUsed, getRecentApps, getAppFavorites, getAppById, hydrateAppFavorites, hydrateAppRecents } from "./apps.js";
 import { bindOmnibox } from "./suggest.js";
-import { rewriteDestination, skipSaveFor } from "./dest.js";
+import { rewriteDestination, skipSaveFor, isWatchPath } from "./dest.js";
 import {
   listChats, getChat, createChat, deleteChat, appendMessage, replaceLastAssistant,
-  exportChat, offlineReply, renderMarkdown, STARTERS, MODEL,
+  exportChat, offlineReply, renderMarkdown, STARTERS,
 } from "./ai.js";
+import { parseRoute, hrefFor } from "./routes.js";
+import { spring, withViewTransition } from "./motion.js";
+import { createWatchController } from "./yt-player.js";
 
 let config = {};
 let scramjet = null;
@@ -26,6 +29,8 @@ let connection = null;
 let proxyActive = false;
 let currentUser = null;
 let currentProxyUrl = "";
+let currentRoute = "home";
+let watchCtl = null;
 
 async function init() {
   console.log("[Blossom] Initializing...");
@@ -119,17 +124,16 @@ async function init() {
   wireQuickLinks();
   wirePanels();
   wireGames();
-  wireGamesView();
   wireApps();
-  wireAppsView();
   wireAi();
   wireHistoryPanel();
   wireProxyToolbar();
-  wireLogoClick();
   wireAccount();
   wireTheme();
   wireVaultSettings();
   wireSavesSettings();
+  wireWatch();
+  wireRoutes();
 
   checkHealth();
 
@@ -138,6 +142,8 @@ async function init() {
   window.addEventListener("beforeunload", () => {
     flushSaveKeepalive();
   });
+
+  applyLocationRoute({ replace: true });
 
   console.log("[Blossom] Ready");
 }
@@ -228,9 +234,41 @@ async function ensureTransport() {
   }
 }
 
+function encodeProxyUrl(url) {
+  if (!url) return url;
+  const prefix = config.scramjetPrefix || "/~/";
+  try {
+    if (scramjet && typeof scramjet.encodeUrl === "function") return scramjet.encodeUrl(url);
+    if (scramjet && typeof scramjet.encodeURL === "function") return scramjet.encodeURL(url);
+    if (scramjet?.url && typeof scramjet.url.encode === "function") {
+      return prefix + scramjet.url.encode(url);
+    }
+  } catch (err) {
+    console.warn("[Blossom] encodeProxyUrl codec failed:", err);
+  }
+  return prefix + encodeURIComponent(url);
+}
+
 async function navigateTo(url, catalogId = null) {
-  if (typeof url === "string" && url.startsWith("/")) {
-    return navigateLocal(new URL(url, location.origin).href, catalogId);
+  const raw = typeof url === "string" && url.startsWith("/")
+    ? url
+    : resolveInput(url);
+  if (!raw) return;
+  const resolved = rewriteDestination(raw);
+
+  if (isWatchPath(resolved)) {
+    const u = new URL(resolved, location.origin);
+    setRoute("watch", { search: u.search });
+    watchCtl?.open({
+      v: u.searchParams.get("v") || "",
+      q: u.searchParams.get("q") || "",
+      push: false,
+    });
+    return;
+  }
+
+  if (typeof resolved === "string" && resolved.startsWith("/")) {
+    return navigateLocal(new URL(resolved, location.origin).href, catalogId);
   }
 
   const searchError = document.getElementById("search-error");
@@ -242,10 +280,6 @@ async function navigateTo(url, catalogId = null) {
     console.error("[Blossom] navigateTo called but scramjet is null");
     return;
   }
-
-  const raw = resolveInput(url);
-  if (!raw) return;
-  const resolved = rewriteDestination(raw);
 
   console.log("[Blossom] Navigating to:", resolved);
 
@@ -279,12 +313,7 @@ async function navigateTo(url, catalogId = null) {
   addToHistory(resolved, resolved);
   renderRecentVisits();
 
-  const gamesView = document.getElementById("games-view");
-  const appsView = document.getElementById("apps-view");
-  const aiView = document.getElementById("ai-view");
-  if (gamesView) gamesView.hidden = true;
-  if (appsView) appsView.hidden = true;
-  if (aiView) aiView.hidden = true;
+  hideCatalogViews();
 
   if (currentUser && currentUser.features?.proxy === false) {
     loadingOverlay.hidden = true;
@@ -405,31 +434,175 @@ function catalogIdForUrl(rawUrl) {
   return null;
 }
 
-function goHome() {
+function teardownProxy() {
   const frame = document.getElementById("proxy-frame");
-  const homeView = document.getElementById("home-view");
-  const gamesView = document.getElementById("games-view");
-  const appsView = document.getElementById("apps-view");
-  const aiView = document.getElementById("ai-view");
   const proxyToolbar = document.getElementById("proxy-toolbar");
   const loadingOverlay = document.getElementById("loading-overlay");
   const expandBtn = document.getElementById("proxy-expand");
 
   if (frame) frame.remove();
-  homeView.style.display = "";
-  if (gamesView) gamesView.hidden = true;
-  if (appsView) appsView.hidden = true;
-  if (aiView) aiView.hidden = true;
-  proxyToolbar.hidden = true;
-  loadingOverlay.hidden = true;
+  if (proxyToolbar) proxyToolbar.hidden = true;
+  if (loadingOverlay) loadingOverlay.hidden = true;
   if (expandBtn) expandBtn.hidden = true;
   proxyActive = false;
   document.body.classList.remove("proxying");
   scramjetFrame = null;
   currentProxyUrl = "";
   endSaveSession().catch(() => {});
-
   applyCloak();
+}
+
+function goHome() {
+  setRoute("home");
+}
+
+function hideCatalogViews() {
+  const gamesView = document.getElementById("games-view");
+  const appsView = document.getElementById("apps-view");
+  const aiView = document.getElementById("ai-view");
+  const ytView = document.getElementById("yt-view");
+  if (gamesView) gamesView.hidden = true;
+  if (appsView) appsView.hidden = true;
+  if (aiView) aiView.hidden = true;
+  if (ytView) ytView.hidden = true;
+}
+
+function featureAllows(name) {
+  const f = currentUser?.features;
+  if (!f) return true;
+  if (name === "games") return f.games !== false;
+  if (name === "apps") return f.apps !== false;
+  if (name === "ai") return f.ai !== false;
+  if (name === "watch") return f.proxy !== false;
+  return true;
+}
+
+function syncNav(name) {
+  const map = [
+    ["btn-games", "games"],
+    ["btn-apps", "apps"],
+    ["btn-ai", "ai"],
+  ];
+  for (const [id, route] of map) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    const on = route === name;
+    el.classList.toggle("active", on);
+    if (on) el.setAttribute("aria-current", "page");
+    else el.removeAttribute("aria-current");
+  }
+}
+
+function paintRoute(name) {
+  const homeView = document.getElementById("home-view");
+  hideCatalogViews();
+  if (homeView) homeView.style.display = name === "home" ? "" : "none";
+  if (name !== "watch") {
+    try { document.getElementById("yt-video")?.pause(); } catch {}
+  }
+
+  if (name === "games") {
+    const gamesView = document.getElementById("games-view");
+    if (gamesView) gamesView.hidden = false;
+    renderGamesGrid(
+      document.getElementById("games-search")?.value || "",
+      document.querySelector("#games-tags .tag-btn.active")?.textContent || "all"
+    );
+    spring(gamesView, [{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "none" }], { duration: 380 });
+  } else if (name === "apps") {
+    const appsView = document.getElementById("apps-view");
+    if (appsView) appsView.hidden = false;
+    renderAppsGrid(
+      document.getElementById("apps-search")?.value || "",
+      document.querySelector("#apps-tags .tag-btn.active")?.textContent || "all"
+    );
+    spring(appsView, [{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "none" }], { duration: 380 });
+  } else if (name === "ai") {
+    const aiView = document.getElementById("ai-view");
+    if (aiView) aiView.hidden = false;
+  } else if (name === "watch") {
+    const ytView = document.getElementById("yt-view");
+    if (ytView) ytView.hidden = false;
+  }
+  syncNav(name);
+}
+
+function setRoute(name, opts = {}) {
+  const { search = "", replace = false, skipHistory = false } = opts;
+  let route = name;
+  if (!featureAllows(route)) route = "home";
+
+  closeAllPanels();
+  if (proxyActive) teardownProxy();
+
+  const href = hrefFor(route, search);
+  const apply = () => {
+    currentRoute = route;
+    paintRoute(route);
+  };
+  withViewTransition(apply);
+
+  if (!skipHistory) {
+    const method = replace ? "replaceState" : "pushState";
+    const here = location.pathname + location.search;
+    if (replace || here !== href) history[method]({ route }, "", href);
+  }
+}
+
+function applyLocationRoute({ replace = false } = {}) {
+  const parsed = parseRoute(location.pathname, location.search);
+  setRoute(parsed.name, { search: parsed.search, replace, skipHistory: true });
+  history.replaceState({ route: parsed.name }, "", hrefFor(parsed.name, parsed.search));
+  if (parsed.name === "watch") {
+    const u = new URL(location.href);
+    watchCtl?.open({
+      v: u.searchParams.get("v") || "",
+      q: u.searchParams.get("q") || "",
+      push: false,
+    });
+  }
+}
+
+function interceptRouteClick(el, name) {
+  if (!el) return;
+  el.addEventListener("click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    setRoute(name);
+  });
+}
+
+function wireRoutes() {
+  interceptRouteClick(document.getElementById("logo-home"), "home");
+  interceptRouteClick(document.getElementById("btn-games"), "games");
+  interceptRouteClick(document.getElementById("btn-apps"), "apps");
+  interceptRouteClick(document.getElementById("btn-ai"), "ai");
+  interceptRouteClick(document.getElementById("games-back"), "home");
+  interceptRouteClick(document.getElementById("apps-back"), "home");
+  interceptRouteClick(document.getElementById("ai-back"), "home");
+  interceptRouteClick(document.getElementById("yt-back"), "home");
+  window.addEventListener("popstate", () => applyLocationRoute());
+}
+
+function wireWatch() {
+  watchCtl = createWatchController({
+    encodeUrl: encodeProxyUrl,
+    ensureTransport,
+    toast: showToast,
+    onLocation: (href) => {
+      const u = new URL(href, location.origin);
+      setRoute("watch", { search: u.search });
+    },
+    playEmbed: (id) => {
+      const embed = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=1`;
+      navigateTo(embed);
+    },
+  });
+  watchCtl.wire();
+}
+
+function hideCatalogToHome() {
+  setRoute("home");
 }
 
 async function navigateLocal(absUrl, catalogId = null) {
@@ -442,15 +615,10 @@ async function navigateLocal(absUrl, catalogId = null) {
   try { saveSeed = await restoreSave(nextSaveId); } catch {}
 
   const homeView = document.getElementById("home-view");
-  const gamesView = document.getElementById("games-view");
-  const appsView = document.getElementById("apps-view");
   const loadingOverlay = document.getElementById("loading-overlay");
   const proxyToolbar = document.getElementById("proxy-toolbar");
   if (homeView) homeView.style.display = "none";
-  if (gamesView) gamesView.hidden = true;
-  if (appsView) appsView.hidden = true;
-  const aiViewLocal = document.getElementById("ai-view");
-  if (aiViewLocal) aiViewLocal.hidden = true;
+  hideCatalogViews();
   if (loadingOverlay) loadingOverlay.hidden = false;
   if (proxyToolbar) proxyToolbar.hidden = false;
 
@@ -578,7 +746,9 @@ function wirePanels() {
         return;
       }
       const aiView = document.getElementById("ai-view");
-      if (aiView && !aiView.hidden) hideCatalogToHome();
+      if (aiView && !aiView.hidden) { hideCatalogToHome(); return; }
+      const ytView = document.getElementById("yt-view");
+      if (ytView && !ytView.hidden) hideCatalogToHome();
     }
   });
 
@@ -1149,69 +1319,7 @@ function updateBookmarkButton(url) {
   }
 }
 
-function hideCatalogViews() {
-  const gamesView = document.getElementById("games-view");
-  const appsView = document.getElementById("apps-view");
-  const aiView = document.getElementById("ai-view");
-  if (gamesView) gamesView.hidden = true;
-  if (appsView) appsView.hidden = true;
-  if (aiView) aiView.hidden = true;
-}
-
-function wireGamesView() {
-  const gamesBtn = document.getElementById("btn-games");
-  const backBtn = document.getElementById("games-back");
-  if (gamesBtn) gamesBtn.addEventListener("click", showGamesView);
-  if (backBtn) backBtn.addEventListener("click", hideCatalogToHome);
-}
-
-function wireAppsView() {
-  const appsBtn = document.getElementById("btn-apps");
-  const backBtn = document.getElementById("apps-back");
-  if (appsBtn) appsBtn.addEventListener("click", showAppsView);
-  if (backBtn) backBtn.addEventListener("click", hideCatalogToHome);
-}
-
-function showGamesView() {
-  closeAllPanels();
-  if (proxyActive) goHome();
-  const homeView = document.getElementById("home-view");
-  hideCatalogViews();
-  if (homeView) homeView.style.display = "none";
-  const gamesView = document.getElementById("games-view");
-  if (gamesView) gamesView.hidden = false;
-  renderGamesGrid(
-    document.getElementById("games-search")?.value || "",
-    document.querySelector("#games-tags .tag-btn.active")?.textContent || "all"
-  );
-}
-
-function showAppsView() {
-  closeAllPanels();
-  if (proxyActive) goHome();
-  const homeView = document.getElementById("home-view");
-  hideCatalogViews();
-  if (homeView) homeView.style.display = "none";
-  const appsView = document.getElementById("apps-view");
-  if (appsView) appsView.hidden = false;
-  renderAppsGrid(
-    document.getElementById("apps-search")?.value || "",
-    document.querySelector("#apps-tags .tag-btn.active")?.textContent || "all"
-  );
-}
-
-function hideCatalogToHome() {
-  hideCatalogViews();
-  const homeView = document.getElementById("home-view");
-  if (homeView) homeView.style.display = "";
-}
-
 function wireAi() {
-  const btn = document.getElementById("btn-ai");
-  const back = document.getElementById("ai-back");
-  if (btn) btn.addEventListener("click", showAiView);
-  if (back) back.addEventListener("click", hideCatalogToHome);
-
   const form = document.getElementById("ai-composer");
   const input = document.getElementById("ai-input");
   const sendBtn = document.getElementById("ai-send");
@@ -1220,9 +1328,14 @@ function wireAi() {
   const exportBtn = document.getElementById("ai-export");
   const newBtn = document.getElementById("ai-new");
   const starters = document.getElementById("ai-starters");
+  const empty = document.getElementById("ai-empty");
+  const sidebar = document.getElementById("ai-sidebar");
+  const toggle = document.getElementById("ai-sidebar-toggle");
 
   let activeId = null;
   let typing = null;
+
+  toggle?.addEventListener("click", () => sidebar?.classList.toggle("open"));
 
   function paintList() {
     const ul = document.getElementById("ai-chat-list");
@@ -1235,7 +1348,10 @@ function wireAi() {
       open.type = "button";
       open.className = "ai-chat-open";
       open.textContent = c.title;
-      open.addEventListener("click", () => openChat(c.id));
+      open.addEventListener("click", () => {
+        sidebar?.classList.remove("open");
+        openChat(c.id);
+      });
       const del = document.createElement("button");
       del.type = "button";
       del.className = "ai-chat-del";
@@ -1253,44 +1369,52 @@ function wireAi() {
     }
   }
 
+  function syncEmpty(chat) {
+    const isEmpty = !chat?.messages?.length;
+    if (empty) empty.hidden = !isEmpty;
+    const box = document.getElementById("ai-messages");
+    if (box) box.hidden = isEmpty;
+    if (starters) starters.hidden = !isEmpty;
+  }
+
+  function msgRow(msg, { live = false } = {}) {
+    const row = document.createElement("article");
+    row.className = `ai-msg ai-msg-${msg.role}`;
+    row.innerHTML = `
+      <div class="ai-avatar" aria-hidden="true">${msg.role === "user" ? "you" : "咲"}</div>
+      <div class="ai-msg-stack">
+        <div class="ai-msg-role">${msg.role === "user" ? "You" : "Blossom"}</div>
+        <div class="ai-msg-body"></div>
+        <div class="ai-msg-tools"></div>
+      </div>`;
+    const body = row.querySelector(".ai-msg-body");
+    body.innerHTML = renderMarkdown(msg.content) + (live ? '<span class="ai-caret"></span>' : "");
+    const tools = row.querySelector(".ai-msg-tools");
+    const copy = document.createElement("button");
+    copy.type = "button";
+    copy.textContent = "Copy";
+    copy.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(msg.content); showToast("Copied"); } catch {}
+    });
+    tools.appendChild(copy);
+    if (msg.role === "assistant" && !live) {
+      const regen = document.createElement("button");
+      regen.type = "button";
+      regen.textContent = "Regenerate";
+      regen.addEventListener("click", () => regenerate());
+      tools.appendChild(regen);
+    }
+    return row;
+  }
+
   function paintMessages() {
     const box = document.getElementById("ai-messages");
     const chat = getChat(activeId);
     if (!box || !chat) return;
     box.innerHTML = "";
-    for (const msg of chat.messages) {
-      const row = document.createElement("article");
-      row.className = `ai-msg ai-msg-${msg.role}`;
-      const who = document.createElement("div");
-      who.className = "ai-msg-role";
-      who.textContent = msg.role === "user" ? "You" : "Blossom";
-      const body = document.createElement("div");
-      body.className = "ai-msg-body";
-      body.innerHTML = renderMarkdown(msg.content);
-      const tools = document.createElement("div");
-      tools.className = "ai-msg-tools";
-      const copy = document.createElement("button");
-      copy.type = "button";
-      copy.textContent = "Copy";
-      copy.addEventListener("click", async () => {
-        try { await navigator.clipboard.writeText(msg.content); showToast("Copied"); } catch {}
-      });
-      tools.appendChild(copy);
-      if (msg.role === "assistant") {
-        const regen = document.createElement("button");
-        regen.type = "button";
-        regen.textContent = "Regenerate";
-        regen.addEventListener("click", () => regenerate());
-        tools.appendChild(regen);
-      }
-      row.appendChild(who);
-      row.appendChild(body);
-      row.appendChild(tools);
-      box.appendChild(row);
-    }
+    for (const msg of chat.messages) box.appendChild(msgRow(msg));
     box.scrollTop = box.scrollHeight;
-    const empty = !chat.messages.length;
-    if (starters) starters.hidden = !empty;
+    syncEmpty(chat);
   }
 
   function openChat(id) {
@@ -1309,27 +1433,39 @@ function wireAi() {
     if (sendBtn) sendBtn.disabled = on;
     if (stopBtn) stopBtn.hidden = !on;
     if (input) input.disabled = on;
+    document.getElementById("ai-view")?.classList.toggle("ai-busy", on);
   }
 
   function typeReply(full) {
     return new Promise((resolve) => {
+      const box = document.getElementById("ai-messages");
+      appendMessage(activeId, "assistant", "");
+      const row = msgRow({ role: "assistant", content: "" }, { live: true });
+      box?.appendChild(row);
+      spring(row, [
+        { opacity: 0, transform: "translateY(12px) scale(0.98)" },
+        { opacity: 1, transform: "none" },
+      ], { duration: 420 });
+      const body = row.querySelector(".ai-msg-body");
       let i = 0;
       let acc = "";
       setBusy(true);
       const tick = () => {
-        acc += full.charAt(i);
-        i += 1;
+        const take = full.length > 80 ? 2 : 1;
+        acc += full.slice(i, i + take);
+        i += take;
         replaceLastAssistant(activeId, acc);
-        paintMessages();
+        if (body) body.innerHTML = renderMarkdown(acc) + (i < full.length ? '<span class="ai-caret"></span>' : "");
+        if (box) box.scrollTop = box.scrollHeight;
         if (i >= full.length) {
           typing = null;
           setBusy(false);
+          paintMessages();
           resolve();
           return;
         }
-        typing = setTimeout(tick, 8);
+        typing = setTimeout(tick, 12);
       };
-      appendMessage(activeId, "assistant", "");
       tick();
     });
   }
@@ -1338,6 +1474,7 @@ function wireAi() {
     if (typing) clearTimeout(typing);
     typing = null;
     setBusy(false);
+    paintMessages();
   }
 
   async function sendText(text) {
@@ -1346,8 +1483,21 @@ function wireAi() {
     ensureChat();
     appendMessage(activeId, "user", q);
     paintList();
-    paintMessages();
+    const chat = getChat(activeId);
+    syncEmpty(chat);
+    const box = document.getElementById("ai-messages");
+    if (box && chat) {
+      if (box.hidden) box.hidden = false;
+      const row = msgRow({ role: "user", content: q });
+      box.appendChild(row);
+      spring(row, [
+        { opacity: 0, transform: "translateY(14px) scale(0.97)" },
+        { opacity: 1, transform: "none" },
+      ], { duration: 380 });
+      box.scrollTop = box.scrollHeight;
+    }
     if (input) { input.value = ""; input.style.height = "auto"; }
+    spring(sendBtn, [{ transform: "scale(0.88)" }, { transform: "scale(1)" }], { duration: 280 });
     await typeReply(offlineReply());
   }
 
@@ -1358,6 +1508,7 @@ function wireAi() {
     if (!lastUser) return;
     stopTyping();
     replaceLastAssistant(activeId, "");
+    paintMessages();
     await typeReply(offlineReply());
   }
 
@@ -1390,49 +1541,26 @@ function wireAi() {
   newBtn?.addEventListener("click", () => {
     stopTyping();
     openChat(createChat().id);
+    spring(newBtn, [{ transform: "scale(0.96)" }, { transform: "scale(1)" }], { duration: 220 });
   });
   if (starters) {
     starters.innerHTML = "";
-    for (const s of STARTERS) {
+    STARTERS.forEach((s, i) => {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "ai-starter";
-      b.textContent = s.label;
+      b.style.setProperty("--i", String(i));
+      b.innerHTML = `<span>${s.label}</span><small>Tap to try</small>`;
       b.addEventListener("click", () => sendText(s.prompt));
       starters.appendChild(b);
-    }
+    });
   }
   const modelEl = document.getElementById("ai-model-label");
-  if (modelEl) modelEl.textContent = MODEL;
+  if (modelEl) modelEl.textContent = "Blossom AI · offline";
 
   ensureChat();
   paintList();
   paintMessages();
-}
-
-function showAiView() {
-  closeAllPanels();
-  if (proxyActive) goHome();
-  const homeView = document.getElementById("home-view");
-  hideCatalogViews();
-  if (homeView) homeView.style.display = "none";
-  const aiView = document.getElementById("ai-view");
-  if (aiView) aiView.hidden = false;
-}
-
-function hideGamesView() {
-  hideCatalogToHome();
-}
-
-function wireLogoClick() {
-  const logo = document.querySelector(".topbar-left .logo");
-  if (logo) {
-    logo.style.cursor = "pointer";
-    logo.addEventListener("click", () => {
-      if (proxyActive) goHome();
-      else hideCatalogToHome();
-    });
-  }
 }
 
 function wireAccount() {
