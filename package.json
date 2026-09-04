@@ -18,7 +18,7 @@
   "author": "Blossom",
   "license": "AGPL-3.0",
   "dependencies": {
-    "@mercuryworkshop/bare-mux": "^2.1.8",
+    "@mercuryworkshop/bare-mux": "^2.1.9",
     "@mercuryworkshop/epoxy-transport": "^2.1.28",
     "@mercuryworkshop/scramjet": "2.0.0-alpha",
     "@mercuryworkshop/wisp-js": "^0.3.3",
