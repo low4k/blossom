@@ -1,0 +1,111 @@
+[
+  {
+    "id": "youtube",
+    "name": "YouTube",
+    "url": "https://www.youtube.com/",
+    "tags": [
+      "video",
+      "social"
+    ],
+    "thumb": "imgs/apps/youtube.png"
+  },
+  {
+    "id": "spotify",
+    "name": "Spotify",
+    "url": "https://open.spotify.com/",
+    "tags": [
+      "music"
+    ],
+    "thumb": "imgs/apps/spotify.png"
+  },
+  {
+    "id": "discord",
+    "name": "Discord",
+    "url": "https://discord.com/app",
+    "tags": [
+      "chat",
+      "social"
+    ],
+    "thumb": "imgs/apps/discord.png"
+  },
+  {
+    "id": "photopea",
+    "name": "Photopea",
+    "url": "https://www.photopea.com/",
+    "tags": [
+      "image edit",
+      "tools"
+    ],
+    "thumb": "imgs/apps/photopea.png"
+  },
+  {
+    "id": "excalidraw",
+    "name": "Excalidraw",
+    "url": "https://excalidraw.com/",
+    "tags": [
+      "drawing",
+      "tools"
+    ],
+    "thumb": "imgs/apps/excalidraw.png"
+  },
+  {
+    "id": "desmos",
+    "name": "Desmos Graphing",
+    "url": "https://www.desmos.com/calculator",
+    "tags": [
+      "math",
+      "tools"
+    ],
+    "thumb": "imgs/apps/desmos.png"
+  },
+  {
+    "id": "geogebra",
+    "name": "GeoGebra",
+    "url": "https://www.geogebra.org/graphing",
+    "tags": [
+      "math",
+      "tools"
+    ],
+    "thumb": "imgs/apps/geogebra.jpg"
+  },
+  {
+    "id": "vsc",
+    "name": "VS Code Web",
+    "url": "https://vscode.dev/",
+    "tags": [
+      "dev",
+      "tools"
+    ],
+    "thumb": "imgs/apps/vsc.png"
+  },
+  {
+    "id": "squoosh",
+    "name": "Squoosh",
+    "url": "https://squoosh.app/",
+    "tags": [
+      "image",
+      "tools"
+    ],
+    "thumb": "imgs/apps/squoosh.png"
+  },
+  {
+    "id": "notion",
+    "name": "Notion",
+    "url": "https://www.notion.so/",
+    "tags": [
+      "work",
+      "docs"
+    ],
+    "thumb": "imgs/apps/notion.jpg"
+  },
+  {
+    "id": "wikipedia",
+    "name": "Wikipedia",
+    "url": "https://www.wikipedia.org/",
+    "tags": [
+      "reference",
+      "reading"
+    ],
+    "thumb": "imgs/apps/wikipedia.png"
+  }
+]

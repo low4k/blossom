@@ -1,0 +1,10 @@
+---
+description: Commit finished work without waiting to be asked
+alwaysApply: true
+---
+
+# Auto-commit
+
+After finishing a coherent unit of work the user asked for, create a git commit using the repo's commit protocol (status, diff, log, stage, commit, verify). Do not wait for a separate "please commit" message.
+
+Do not commit secrets (`.env`, credentials, tokens). Do not skip hooks. Do not push unless the user asks to push or deploy.

@@ -19,6 +19,7 @@ import {
   validateSession,
   getUserBookmarks, addUserBookmark, removeUserBookmark,
   getUserHistory, addUserHistory, clearUserHistory, updateUserHistoryTitle,
+  getSaveList, getSave, putSave, deleteSave, deleteAllSaves,
 } from "./db.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
@@ -64,7 +65,10 @@ app.use((_req, res, next) => {
 
 app.use(compression());
 
-app.use(express.json({ limit: "100kb" }));
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/saves")) return next();
+  return express.json({ limit: "100kb" })(req, res, next);
+});
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -175,6 +179,44 @@ app.get("/api/history", requireAuth, (req, res) => {
 
 // Anti-CAPTCHA vault + visibility endpoints
 app.use("/api/captcha", requireAuth, captchaRouter);
+
+// Per-account game/app save slots
+const SAVE_ID_RE = /^[a-z0-9][a-z0-9-_.]{0,63}$/;
+const MAX_SAVE_BYTES = 5 * 1024 * 1024;
+
+app.get("/api/saves", requireAuth, (req, res) => {
+  res.json({ saves: getSaveList(req.user.id) });
+});
+
+app.get("/api/saves/:id", requireAuth, (req, res) => {
+  const row = getSave(req.user.id, req.params.id);
+  if (!row) return res.status(404).json({ error: "Not found" });
+  res.json({ id: req.params.id, data: JSON.parse(row.data), updatedAt: row.updatedAt });
+});
+
+app.put("/api/saves/:id", requireAuth, express.json({ limit: MAX_SAVE_BYTES }), (req, res) => {
+  if (!SAVE_ID_RE.test(String(req.params.id))) return res.status(400).json({ error: "Invalid save id" });
+  const body = req.body && typeof req.body === "object" ? req.body : null;
+  const payload = body && body.data !== undefined && !("local" in body) ? body.data : body;
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return res.status(400).json({ error: "Invalid data" });
+  }
+  let json;
+  try { json = JSON.stringify(payload); } catch { return res.status(400).json({ error: "Invalid data" }); }
+  if (!json || json.length > MAX_SAVE_BYTES) return res.status(413).json({ error: "Save too large" });
+  putSave(req.user.id, req.params.id, json);
+  res.json({ ok: true, bytes: json.length });
+});
+
+app.delete("/api/saves", requireAuth, (req, res) => {
+  deleteAllSaves(req.user.id);
+  res.json({ ok: true });
+});
+
+app.delete("/api/saves/:id", requireAuth, (req, res) => {
+  deleteSave(req.user.id, req.params.id);
+  res.json({ ok: true });
+});
 app.post("/api/history", requireAuth, (req, res) => {
   const { url, title } = req.body || {};
   if (!validStoredUrl(url)) return res.status(400).json({ error: "A valid http(s) url is required" });

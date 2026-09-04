@@ -1,339 +1,392 @@
 [
   {
-    "id": "slope",
-    "name": "Slope",
-    "url": "https://slope-game.github.io/",
-    "thumb": "https://slope-game.github.io/img/slope.png",
-    "icon": "⛷️",
-    "tags": ["action", "3d", "popular"]
-  },
-  {
-    "id": "1v1lol",
-    "name": "1v1.LOL",
-    "url": "https://1v1.lol",
-    "icon": "⚔️",
-    "tags": ["shooter", "multiplayer", "popular"]
-  },
-  {
-    "id": "retro-bowl",
-    "name": "Retro Bowl",
-    "url": "https://retro-bowl-game.github.io/",
-    "icon": "🏈",
-    "tags": ["sports", "popular"]
-  },
-  {
-    "id": "subway-surfers",
-    "name": "Subway Surfers",
-    "url": "https://subwaysurfers.game/",
-    "icon": "🏃",
-    "tags": ["action", "runner", "popular"]
-  },
-  {
     "id": "2048",
     "name": "2048",
     "url": "https://play2048.co/",
-    "icon": "🔢",
-    "tags": ["puzzle", "classic"]
-  },
-  {
-    "id": "cookie-clicker",
-    "name": "Cookie Clicker",
-    "url": "https://orteil.dashnet.org/cookieclicker/",
-    "icon": "🍪",
-    "tags": ["idle", "clicker", "classic"]
-  },
-  {
-    "id": "tetris",
-    "name": "Tetris",
-    "url": "https://tetris.com/play-tetris",
-    "icon": "🟦",
-    "tags": ["puzzle", "classic"]
-  },
-  {
-    "id": "among-us",
-    "name": "Among Us Online",
-    "url": "https://among-us-online.net/",
-    "icon": "🧑‍🚀",
-    "tags": ["multiplayer", "social"]
-  },
-  {
-    "id": "agar-io",
-    "name": "Agar.io",
-    "url": "https://agar.io",
-    "icon": "🟢",
-    "tags": ["io", "multiplayer"]
-  },
-  {
-    "id": "slither-io",
-    "name": "Slither.io",
-    "url": "https://slither.io",
-    "icon": "🐍",
-    "tags": ["io", "multiplayer"]
-  },
-  {
-    "id": "run-3",
-    "name": "Run 3",
-    "url": "https://run3.io/",
-    "icon": "🏃‍♂️",
-    "tags": ["action", "runner", "classic"]
-  },
-  {
-    "id": "fnf",
-    "name": "Friday Night Funkin'",
-    "url": "https://fridaynightfunkin.net/play/",
-    "icon": "🎤",
-    "tags": ["rhythm", "music", "popular"]
-  },
-  {
-    "id": "paper-io",
-    "name": "Paper.io 2",
-    "url": "https://paper-io.com/",
-    "icon": "📄",
-    "tags": ["io", "multiplayer"]
-  },
-  {
-    "id": "minecraft-classic",
-    "name": "Minecraft Classic",
-    "url": "https://classic.minecraft.net/",
-    "icon": "⛏️",
-    "tags": ["sandbox", "classic", "popular"]
-  },
-  {
-    "id": "drift-hunters",
-    "name": "Drift Hunters",
-    "url": "https://drift-hunters.github.io/",
-    "icon": "🏎️",
-    "tags": ["racing", "3d"]
-  },
-  {
-    "id": "smash-karts",
-    "name": "Smash Karts",
-    "url": "https://smashkarts.io/",
-    "icon": "🏁",
-    "tags": ["racing", "multiplayer"]
+    "tags": [
+      "puzzle",
+      "classic"
+    ],
+    "thumb": "imgs/games/2048.jpg"
   },
   {
     "id": "chrome-dino",
     "name": "Chrome Dino",
     "url": "https://chromedino.com/",
-    "icon": "🦕",
-    "tags": ["action", "runner", "classic"]
-  },
-  {
-    "id": "crossy-road",
-    "name": "Crossy Road",
-    "url": "https://crossyroad.com/",
-    "icon": "🐔",
-    "tags": ["action", "casual"]
-  },
-  {
-    "id": "geometry-dash",
-    "name": "Geometry Dash",
-    "url": "https://geometrydashgame.io/",
-    "icon": "📐",
-    "tags": ["action", "rhythm", "popular"]
-  },
-  {
-    "id": "pacman",
-    "name": "Pac-Man",
-    "url": "https://freepacman.org/",
-    "icon": "👾",
-    "tags": ["arcade", "classic"]
-  },
-  {
-    "id": "flappy-bird",
-    "name": "Flappy Bird",
-    "url": "https://flappybird.io/",
-    "icon": "🐦",
-    "tags": ["action", "classic", "casual"]
-  },
-  {
-    "id": "basketball-stars",
-    "name": "Basketball Stars",
-    "url": "https://basketballstars.io/",
-    "icon": "🏀",
-    "tags": ["sports", "multiplayer"]
-  },
-  {
-    "id": "snow-rider-3d",
-    "name": "Snow Rider 3D",
-    "url": "https://snowrider3d.github.io/",
-    "icon": "🛷",
-    "tags": ["action", "3d", "popular"]
-  },
-  {
-    "id": "moto-x3m",
-    "name": "Moto X3M",
-    "url": "https://motox3m.io/",
-    "icon": "🏍️",
-    "tags": ["racing", "action"]
-  },
-  {
-    "id": "btd",
-    "name": "Bloons TD",
-    "url": "https://btd.github.io/",
-    "icon": "🎈",
-    "tags": ["strategy", "tower-defense"]
-  },
-  {
-    "id": "wordle",
-    "name": "Wordle",
-    "url": "https://www.nytimes.com/games/wordle/index.html",
-    "icon": "📝",
-    "tags": ["puzzle", "word", "popular"]
-  },
-  {
-    "id": "chess",
-    "name": "Chess",
-    "url": "https://www.chess.com/play/computer",
-    "icon": "♟️",
-    "tags": ["strategy", "classic", "board"]
-  },
-  {
-    "id": "checkers",
-    "name": "Checkers",
-    "url": "https://www.247checkers.com/",
-    "icon": "🔴",
-    "tags": ["strategy", "classic", "board"]
-  },
-  {
-    "id": "sudoku",
-    "name": "Sudoku",
-    "url": "https://sudoku.com/",
-    "icon": "🔢",
-    "tags": ["puzzle", "classic"]
-  },
-  {
-    "id": "solitaire",
-    "name": "Solitaire",
-    "url": "https://www.solitr.com/",
-    "icon": "🃏",
-    "tags": ["card", "classic"]
-  },
-  {
-    "id": "minesweeper",
-    "name": "Minesweeper",
-    "url": "https://minesweeper.online/",
-    "icon": "💣",
-    "tags": ["puzzle", "classic"]
-  },
-  {
-    "id": "tiny-fishing",
-    "name": "Tiny Fishing",
-    "url": "https://tinyfishing.co/",
-    "icon": "🎣",
-    "tags": ["idle", "casual", "popular"]
-  },
-  {
-    "id": "temple-run-2",
-    "name": "Temple Run 2",
-    "url": "https://poki.com/en/g/temple-run-2",
-    "icon": "🏛️",
-    "tags": ["action", "runner"]
-  },
-  {
-    "id": "krunker",
-    "name": "Krunker.io",
-    "url": "https://krunker.io/",
-    "icon": "🔫",
-    "tags": ["shooter", "multiplayer", "io", "popular"]
-  },
-  {
-    "id": "shell-shockers",
-    "name": "Shell Shockers",
-    "url": "https://shellshock.io/",
-    "icon": "🥚",
-    "tags": ["shooter", "multiplayer", "io"]
-  },
-  {
-    "id": "bloxd-io",
-    "name": "Bloxd.io",
-    "url": "https://bloxd.io/",
-    "icon": "🧊",
-    "tags": ["sandbox", "multiplayer", "io"]
-  },
-  {
-    "id": "narrow-one",
-    "name": "Narrow One",
-    "url": "https://narrow.one/",
-    "icon": "🏹",
-    "tags": ["shooter", "multiplayer"]
-  },
-  {
-    "id": "ev-io",
-    "name": "ev.io",
-    "url": "https://ev.io/",
-    "icon": "🎯",
-    "tags": ["shooter", "multiplayer", "io"]
-  },
-  {
-    "id": "voxiom-io",
-    "name": "Voxiom.io",
-    "url": "https://voxiom.io/",
-    "icon": "🧱",
-    "tags": ["shooter", "sandbox", "io"]
-  },
-  {
-    "id": "idle-breakout",
-    "name": "Idle Breakout",
-    "url": "https://idlebreakout.github.io/",
-    "icon": "🧮",
-    "tags": ["idle", "clicker"]
-  },
-  {
-    "id": "bitlife",
-    "name": "BitLife Simulator",
-    "url": "https://bitlife-life-simulator.github.io/",
-    "icon": "👶",
-    "tags": ["simulation", "casual"]
-  },
-  {
-    "id": "cut-the-rope",
-    "name": "Cut the Rope",
-    "url": "https://cuttherope.io/",
-    "icon": "✂️",
-    "tags": ["puzzle", "casual"]
-  },
-  {
-    "id": "eggy-car",
-    "name": "Eggy Car",
-    "url": "https://eggycar.github.io/",
-    "icon": "🥚",
-    "tags": ["racing", "casual", "popular"]
-  },
-  {
-    "id": "bob-the-robber",
-    "name": "Bob the Robber",
-    "url": "https://bobtherobber.github.io/",
-    "icon": "🦹",
-    "tags": ["action", "puzzle"]
-  },
-  {
-    "id": "tunnel-rush",
-    "name": "Tunnel Rush",
-    "url": "https://tunnelrush.github.io/",
-    "icon": "🌀",
-    "tags": ["action", "3d", "popular"]
+    "tags": [
+      "action",
+      "runner",
+      "classic"
+    ],
+    "thumb": "imgs/games/chrome-dino.png"
   },
   {
     "id": "snake-html",
     "name": "Snake",
     "url": "/games/snake.html",
-    "icon": "🐍",
-    "tags": ["html", "classic", "arcade"]
+    "tags": [
+      "builtin",
+      "classic",
+      "arcade"
+    ],
+    "thumb": "imgs/games/snake-html.svg"
   },
   {
     "id": "breakout-html",
     "name": "Breakout",
     "url": "/games/breakout.html",
-    "icon": "🧱",
-    "tags": ["html", "classic", "arcade"]
+    "tags": [
+      "builtin",
+      "classic",
+      "arcade"
+    ],
+    "thumb": "imgs/games/breakout-html.svg"
   },
   {
     "id": "memory-html",
     "name": "Memory Match",
     "url": "/games/memory.html",
-    "icon": "🃏",
-    "tags": ["html", "puzzle", "casual"]
+    "tags": [
+      "builtin",
+      "puzzle",
+      "casual"
+    ],
+    "thumb": "imgs/games/memory-html.svg"
+  },
+  {
+    "id": "slope",
+    "name": "Slope",
+    "url": "https://sz-games.github.io/Slope.html",
+    "tags": [
+      "action",
+      "3d",
+      "popular"
+    ],
+    "thumb": "imgs/games/slope.svg"
+  },
+  {
+    "id": "retro-bowl",
+    "name": "Retro Bowl",
+    "url": "https://retro-bowl-game.github.io/",
+    "tags": [
+      "sports",
+      "popular"
+    ],
+    "thumb": "imgs/games/retro-bowl.png"
+  },
+  {
+    "id": "tetris",
+    "name": "Tetris",
+    "url": "https://tetris.com/play-tetris",
+    "tags": [
+      "puzzle",
+      "classic"
+    ],
+    "thumb": "imgs/games/tetris.png"
+  },
+  {
+    "id": "minecraft-classic",
+    "name": "Minecraft Classic",
+    "url": "https://classic.minecraft.net/",
+    "tags": [
+      "sandbox",
+      "classic",
+      "popular"
+    ],
+    "thumb": "imgs/games/minecraft-classic.svg"
+  },
+  {
+    "id": "pacman",
+    "name": "Pac-Man",
+    "url": "https://freepacman.org/",
+    "tags": [
+      "arcade",
+      "classic"
+    ],
+    "thumb": "imgs/games/pacman.png"
+  },
+  {
+    "id": "flappy-bird",
+    "name": "Flappy Bird",
+    "url": "https://flappybird.io/",
+    "tags": [
+      "action",
+      "classic",
+      "casual"
+    ],
+    "thumb": "imgs/games/flappy-bird.png"
+  },
+  {
+    "id": "slither-io",
+    "name": "Slither.io",
+    "url": "https://slither.io/",
+    "tags": [
+      "io",
+      "multiplayer"
+    ],
+    "thumb": "imgs/games/slither-io.jpg"
+  },
+  {
+    "id": "paper-io",
+    "name": "Paper.io 2",
+    "url": "https://paper-io.com/",
+    "tags": [
+      "io",
+      "multiplayer"
+    ],
+    "thumb": "imgs/games/paper-io.jpg"
+  },
+  {
+    "id": "wordle",
+    "name": "Wordle",
+    "url": "https://www.nytimes.com/games/wordle/index.html",
+    "tags": [
+      "puzzle",
+      "word",
+      "popular"
+    ],
+    "thumb": "imgs/games/wordle.png"
+  },
+  {
+    "id": "minesweeper",
+    "name": "Minesweeper",
+    "url": "https://minesweeper.online/",
+    "tags": [
+      "puzzle",
+      "classic"
+    ],
+    "thumb": "imgs/games/minesweeper.png"
+  },
+  {
+    "id": "solitaire",
+    "name": "Solitaire (Google Solitaire)",
+    "url": "https://solitaired.com/",
+    "tags": [
+      "card",
+      "classic"
+    ],
+    "thumb": "imgs/games/solitaire.png"
+  },
+  {
+    "id": "sudoku",
+    "name": "Sudoku",
+    "url": "https://sudoku.com/",
+    "tags": [
+      "puzzle",
+      "classic"
+    ],
+    "thumb": "imgs/games/sudoku.png"
+  },
+  {
+    "id": "tiny-fishing",
+    "name": "Tiny Fishing",
+    "url": "https://tinyfishing.co/",
+    "tags": [
+      "idle",
+      "casual",
+      "popular"
+    ],
+    "thumb": "imgs/games/tiny-fishing.jpg"
+  },
+  {
+    "id": "temple-run-2",
+    "name": "Temple Run 2",
+    "url": "https://poki.com/en/g/temple-run-2",
+    "tags": [
+      "action",
+      "runner"
+    ],
+    "thumb": "imgs/games/temple-run-2.png"
+  },
+  {
+    "id": "retroarch",
+    "name": "RetroArch (Emu Core)",
+    "url": "https://web.libretro.com/",
+    "tags": [
+      "emulator",
+      "retro",
+      "featured"
+    ],
+    "thumb": "imgs/games/retroarch.jpg"
+  },
+  {
+    "id": "eaglecraft",
+    "name": "EagleCraft (Minecraft 1.8)",
+    "url": "https://eaglercraft.com/",
+    "tags": [
+      "sandbox",
+      "io",
+      "featured"
+    ],
+    "thumb": "imgs/games/eaglecraft.png"
+  },
+  {
+    "id": "krunker",
+    "name": "Krunker.io",
+    "url": "https://krunker.io/",
+    "tags": [
+      "shooter",
+      "multiplayer",
+      "io",
+      "popular"
+    ],
+    "thumb": "imgs/games/krunker.png"
+  },
+  {
+    "id": "bloxd-io",
+    "name": "Bloxd.io",
+    "url": "https://bloxd.io/",
+    "tags": [
+      "sandbox",
+      "multiplayer",
+      "io"
+    ],
+    "thumb": "imgs/games/bloxd-io.jpg"
+  },
+  {
+    "id": "ev-io",
+    "name": "ev.io",
+    "url": "https://ev.io/",
+    "tags": [
+      "shooter",
+      "multiplayer",
+      "io"
+    ],
+    "thumb": "imgs/games/ev-io.png"
+  },
+  {
+    "id": "smash-karts",
+    "name": "Smash Karts",
+    "url": "https://smashkarts.io/",
+    "tags": [
+      "racing",
+      "multiplayer"
+    ],
+    "thumb": "imgs/games/smash-karts.png"
+  },
+  {
+    "id": "drift-hunters",
+    "name": "Drift Hunters",
+    "url": "https://poki.com/en/g/drift-hunters",
+    "tags": [
+      "racing",
+      "3d"
+    ],
+    "thumb": "imgs/games/drift-hunters.svg"
+  },
+  {
+    "id": "tunnel-rush",
+    "name": "Tunnel Rush",
+    "url": "https://poki.com/en/g/tunnel-rush",
+    "tags": [
+      "action",
+      "3d",
+      "popular"
+    ],
+    "thumb": "imgs/games/tunnel-rush.svg"
+  },
+  {
+    "id": "subway-surfers",
+    "name": "Subway Surfers",
+    "url": "https://poki.com/en/g/subway-surfers",
+    "tags": [
+      "action",
+      "runner",
+      "popular"
+    ],
+    "thumb": "imgs/games/subway-surfers.png"
+  },
+  {
+    "id": "monkey-mart",
+    "name": "Monkey Mart",
+    "url": "https://poki.com/en/g/monkey-mart",
+    "tags": [
+      "idle",
+      "casual",
+      "popular"
+    ],
+    "thumb": "imgs/games/monkey-mart.jpg"
+  },
+  {
+    "id": "stickman-hook",
+    "name": "Stickman Hook",
+    "url": "https://poki.com/en/g/stickman-hook",
+    "tags": [
+      "action",
+      "casual"
+    ],
+    "thumb": "imgs/games/stickman-hook.jpg"
+  },
+  {
+    "id": "chess",
+    "name": "Chess.com vs Computer",
+    "url": "https://www.chess.com/play/computer",
+    "tags": [
+      "strategy",
+      "classic",
+      "board"
+    ],
+    "thumb": "imgs/games/chess.png"
+  },
+  {
+    "id": "hexgl",
+    "name": "HexGL",
+    "url": "https://hexgl.bkcore.com/",
+    "tags": [
+      "racing",
+      "3d"
+    ],
+    "thumb": "imgs/games/hexgl.png"
+  },
+  {
+    "id": "eggycar",
+    "name": "Eggy Car",
+    "url": "https://poki.com/en/g/eggy-car",
+    "tags": [
+      "racing",
+      "casual"
+    ],
+    "thumb": "imgs/games/eggycar.png"
+  },
+  {
+    "id": "drive-mad",
+    "name": "Drive Mad",
+    "url": "https://poki.com/en/g/drive-mad",
+    "tags": [
+      "racing",
+      "stunt"
+    ],
+    "thumb": "imgs/games/drive-mad.png"
+  },
+  {
+    "id": "shell-shockers",
+    "name": "Shell Shockers",
+    "url": "https://shellshock.io/",
+    "tags": [
+      "shooter",
+      "multiplayer",
+      "io"
+    ],
+    "thumb": "imgs/games/shell-shockers.webp"
+  },
+  {
+    "id": "cut-the-rope",
+    "name": "Cut the Rope",
+    "url": "https://poki.com/en/g/cut-the-rope",
+    "tags": [
+      "puzzle",
+      "casual"
+    ],
+    "thumb": "imgs/games/cut-the-rope.jpg"
+  },
+  {
+    "id": "crossy-road",
+    "name": "Crossy Road",
+    "url": "https://poki.com/en/g/crossy-road",
+    "tags": [
+      "action",
+      "casual"
+    ],
+    "thumb": "imgs/games/crossy-road.jpg"
   }
 ]

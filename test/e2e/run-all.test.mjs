@@ -12,7 +12,9 @@ const suites = [
   "iter5-responsive-a11y.test.mjs",
   "iter6-totp.test.mjs",
   "iter7-captcha.test.mjs",
+  "iter8-saves-apps.test.mjs",
   "captcha-keepalive.node.mjs",
+  "saves-api.node.mjs",
 ];
 
 let totalFailed = 0;

@@ -1,6 +1,13 @@
 # OPTIONAL composite for anti-CAPTCHA sidecars. Not required to run Blossom.
 #   docker compose -f docker-compose.yml -f docker-compose.solvers.yml up
 #
+# DECISION: Phase 2 (uTLS) and Phase 3 (solvers) stay optional plumbing.
+# Browsing TLS terminates in Epoxy/libcurl.wasm in the user's browser, so a
+# server-side uTLS sidecar cannot change what Google sees for page traffic.
+# A curl-impersonate WASM transport would be a Scramjet/Epoxy replacement,
+# not a Blossom patch. Solver images stay user-provided so this AGPL repo
+# does not vendor ML weights or patched browsers.
+#
 # These sidecars must be provided BY YOU (open-source only, AGPL-compatible):
 #
 #   1. stealth: an HTTP CONNECT proxy fronting a uTLS (QTLS/utls) or

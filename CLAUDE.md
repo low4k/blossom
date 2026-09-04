@@ -24,7 +24,7 @@ It runs as a PWA with a mobile-first UI.
 - Session cookie `_bsid` is httpOnly, Secure (behind HTTPS), SameSite=Lax,
   and only its SHA-256 hash is stored. Keep it that way.
 - All DB access is parameterized; roles: `user` / `dev`. `dev` is the admin role.
-- Feature flags (proxy/games/bookmarks/settings) are per-user, enforced in UI
+- Feature flags (proxy/games/apps/bookmarks/settings) are per-user, enforced in UI
   AND server middleware (defense in depth), but the SW intercepts `/~/` traffic
   before Express, so the proxy flag is primarily a client gate.
 
@@ -33,8 +33,8 @@ It runs as a PWA with a mobile-first UI.
 - `server.js` routing + auth gate + Wisp upgrade; `auth.js` sessions + register/login;
   `db.js` (SQLite); `admin.js` (dev API); `config.js` (env-driven); `totp.js`.
 - `public/` frontend: `index.html`, `login.html`, `admin.html`, `diag.html`,
-  `js/` (app + sync/bookmarks/history/cloak/panic/mirrors/search/games/settings),
-  `games/` (snake/breakout/memory), `manifest.webmanifest`, `sw.js`.
+  `js/` (app + sync/bookmarks/history/cloak/panic/mirrors/search/games/apps/saves/settings),
+  `games/` (snake/breakout/memory), `games.json` / `apps.json`, `manifest.webmanifest`, `sw.js`.
 - `test/` smoke + `test/e2e/` Playwright suites (harness.mjs, run-all.test.mjs).
 
 ## Env vars (see .env.example)

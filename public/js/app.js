@@ -4,12 +4,14 @@ import { registerSW } from "./register-sw.js";
 import { resolveInput } from "./search.js";
 import { applyCloak } from "./cloak.js";
 import { initPanic } from "./panic.js";
-import { loadGames, filterGames, getAllTags, toggleFavorite, isFavorite, recordGamePlayed, getRecentGames, getFavorites, getGameById } from "./games.js";
+import { loadGames, filterGames, getAllTags, toggleFavorite, isFavorite, recordGamePlayed, getRecentGames, getFavorites, getGameById, hydrateFavorites, hydrateRecents } from "./games.js";
 import { getBookmarks, addBookmark, removeBookmark, isBookmarked, syncBookmarksFromServer } from "./bookmarks.js";
 import { getHistory, addToHistory, clearHistory, updateHistoryTitle, syncHistoryFromServer } from "./history.js";
 import { initMirrors } from "./mirrors.js";
 import { initSettings } from "./settings.js";
 import { initVaultSync } from "./vault.js";
+import { startSaveSession, endSaveSession, restoreSave, saveIdForUrl, flushSaveKeepalive, syncSave, bindSaveFrame, loadCatalogPrefs, scheduleCatalogPrefs } from "./saves.js";
+import { loadApps, getApps, filterApps, getAppTags, toggleAppFavorite, isAppFavorite, recordAppUsed, getRecentApps, getAppFavorites, getAppById, hydrateAppFavorites, hydrateAppRecents } from "./apps.js";
 
 let config = {};
 let scramjet = null;
@@ -67,6 +69,7 @@ async function init() {
     const f = currentUser.features;
     const hide = (id) => { const el = document.getElementById(id); if (el) el.hidden = true; };
     if (f.games === false) hide("btn-games");
+    if (f.apps === false) hide("btn-apps");
     if (f.bookmarks === false) hide("btn-bookmarks");
     if (f.settings === false) hide("btn-settings");
   }
@@ -100,23 +103,33 @@ async function init() {
   await initScramjet();
 
   await loadGames();
+  await loadApps();
+  await hydrateCatalogPrefs();
   renderGamesTags();
+  renderAppsTags();
 
   wireSearch();
   wireQuickLinks();
   wirePanels();
   wireGames();
   wireGamesView();
+  wireApps();
+  wireAppsView();
   wireHistoryPanel();
   wireProxyToolbar();
   wireLogoClick();
   wireAccount();
   wireTheme();
   wireVaultSettings();
+  wireSavesSettings();
 
   checkHealth();
 
   renderRecentVisits();
+
+  window.addEventListener("beforeunload", () => {
+    flushSaveKeepalive();
+  });
 
   console.log("[Blossom] Ready");
 }
@@ -207,7 +220,11 @@ async function ensureTransport() {
   }
 }
 
-async function navigateTo(url) {
+async function navigateTo(url, catalogId = null) {
+  if (typeof url === "string" && url.startsWith("/")) {
+    return navigateLocal(new URL(url, location.origin).href, catalogId);
+  }
+
   const searchError = document.getElementById("search-error");
   searchError.hidden = true;
 
@@ -222,6 +239,13 @@ async function navigateTo(url) {
   if (!resolved) return;
 
   console.log("[Blossom] Navigating to:", resolved);
+
+  // Per-account save sessions: flush the previous game/app, then restore the
+  // new one's last saved state before the frame boots.
+  const nextSaveId = saveIdForUrl(resolved, catalogId || catalogIdForUrl(resolved));
+  try { await endSaveSession(); } catch {}
+  let saveSeed = { ownedKeys: new Set(), ownedDbs: new Set() };
+  try { saveSeed = await restoreSave(nextSaveId); } catch {}
 
   const loadingOverlay = document.getElementById("loading-overlay");
   const proxyToolbar = document.getElementById("proxy-toolbar");
@@ -246,7 +270,9 @@ async function navigateTo(url) {
   renderRecentVisits();
 
   const gamesView = document.getElementById("games-view");
+  const appsView = document.getElementById("apps-view");
   if (gamesView) gamesView.hidden = true;
+  if (appsView) appsView.hidden = true;
 
   if (currentUser && currentUser.features?.proxy === false) {
     loadingOverlay.hidden = true;
@@ -263,6 +289,7 @@ async function navigateTo(url) {
     setTimeout(() => { loadingOverlay.hidden = true; }, 10000);
     scramjetFrame.go(resolved);
     updateBookmarkButton(resolved);
+    startSaveSession(nextSaveId, scramjetFrame.frame, saveSeed);
     return;
   }
 
@@ -304,6 +331,7 @@ async function navigateTo(url) {
   });
 
   frame.frame.addEventListener("load", () => {
+    bindSaveFrame(frame.frame);
     try {
       const fw = frame.frame.contentWindow;
       if (fw) {
@@ -340,21 +368,35 @@ async function navigateTo(url) {
   if (oldFrame) oldFrame.remove();
 
   document.getElementById("app").appendChild(frame.frame);
+  startSaveSession(nextSaveId, frame.frame, saveSeed);
   scramjetFrame = frame;
   frame.go(resolved);
 
   updateBookmarkButton(resolved);
+}
 
-  const captchaSites = ["google.com", "youtube.com", "discord.com", "roblox.com"];
-  if (captchaSites.some((s) => resolved.includes(s))) {
-    setTimeout(() => showCaptchaToast(), 1500);
+// Match a proxied URL to a games/apps catalog entry (exact or hostname match)
+// so its save slot is the catalog one rather than a generic hostname slot.
+function catalogIdForUrl(rawUrl) {
+  let target;
+  try { target = new URL(rawUrl); } catch { return null; }
+  const host = target.hostname.toLowerCase();
+  const pools = [...getGames(), ...getApps()];
+  for (const entry of pools) {
+    if (!entry.url || entry.url.startsWith("/")) continue;
+    try {
+      const eh = new URL(entry.url).hostname.toLowerCase();
+      if (host === eh || host.endsWith("." + eh)) return entry.id;
+    } catch {}
   }
+  return null;
 }
 
 function goHome() {
   const frame = document.getElementById("proxy-frame");
   const homeView = document.getElementById("home-view");
   const gamesView = document.getElementById("games-view");
+  const appsView = document.getElementById("apps-view");
   const proxyToolbar = document.getElementById("proxy-toolbar");
   const loadingOverlay = document.getElementById("loading-overlay");
   const expandBtn = document.getElementById("proxy-expand");
@@ -362,6 +404,7 @@ function goHome() {
   if (frame) frame.remove();
   homeView.style.display = "";
   if (gamesView) gamesView.hidden = true;
+  if (appsView) appsView.hidden = true;
   proxyToolbar.hidden = true;
   loadingOverlay.hidden = true;
   if (expandBtn) expandBtn.hidden = true;
@@ -369,8 +412,54 @@ function goHome() {
   document.body.classList.remove("proxying");
   scramjetFrame = null;
   currentProxyUrl = "";
+  endSaveSession().catch(() => {});
 
   applyCloak();
+}
+
+async function navigateLocal(absUrl, catalogId = null) {
+  const searchError = document.getElementById("search-error");
+  if (searchError) searchError.hidden = true;
+
+  const nextSaveId = saveIdForUrl(absUrl, catalogId);
+  try { await endSaveSession(); } catch {}
+  let saveSeed = { ownedKeys: new Set(), ownedDbs: new Set() };
+  try { saveSeed = await restoreSave(nextSaveId); } catch {}
+
+  const homeView = document.getElementById("home-view");
+  const gamesView = document.getElementById("games-view");
+  const appsView = document.getElementById("apps-view");
+  const loadingOverlay = document.getElementById("loading-overlay");
+  const proxyToolbar = document.getElementById("proxy-toolbar");
+  if (homeView) homeView.style.display = "none";
+  if (gamesView) gamesView.hidden = true;
+  if (appsView) appsView.hidden = true;
+  if (loadingOverlay) loadingOverlay.hidden = false;
+  if (proxyToolbar) proxyToolbar.hidden = false;
+
+  document.body.classList.add("proxying");
+  proxyActive = true;
+  scramjetFrame = null;
+  updateProxyUrlBar(absUrl);
+  addToHistory(absUrl, absUrl);
+  renderRecentVisits();
+
+  const oldFrame = document.getElementById("proxy-frame");
+  if (oldFrame) oldFrame.remove();
+
+  const iframe = document.createElement("iframe");
+  iframe.id = "proxy-frame";
+  iframe.className = "proxy-frame with-toolbar";
+  iframe.title = "Game";
+  iframe.addEventListener("load", () => {
+    bindSaveFrame(iframe);
+    if (loadingOverlay) loadingOverlay.hidden = true;
+  });
+  document.getElementById("app").appendChild(iframe);
+  startSaveSession(nextSaveId, iframe, saveSeed);
+  iframe.src = absUrl;
+  updateBookmarkButton(absUrl);
+  setTimeout(() => { if (loadingOverlay) loadingOverlay.hidden = true; }, 8000);
 }
 
 function wireSearch() {
@@ -409,7 +498,10 @@ function wirePanels() {
 
       if (panelId === "bookmarks-panel") renderBookmarks();
       if (panelId === "history-panel") renderHistory();
-      if (panelId === "settings-panel") refreshVaultStatus();
+      if (panelId === "settings-panel") {
+        refreshVaultStatus();
+        refreshSavesStatus();
+      }
     });
   }
 
@@ -449,11 +541,109 @@ function closePanel(panelId) {
   setTimeout(() => { panel.hidden = true; }, 250);
 }
 
-function renderGamesTags() {
-  const container = document.getElementById("games-tags");
-  const tags = getAllTags();
-  container.innerHTML = "";
+const STAR_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 17.3l-6.18 3.7 1.64-7.03L2 9.24l7.19-.61L12 2l2.81 6.63 7.19.61-5.46 4.73 1.64 7.03z"/></svg>';
 
+function createCatalogCard(entry, { favorited, onFav, onOpen }) {
+  const card = document.createElement("div");
+  card.className = "game-card";
+  card.style.position = "relative";
+  card.dataset.id = entry.id;
+
+  const thumbWrap = document.createElement("div");
+  thumbWrap.className = "game-card-thumb";
+  if (entry.thumb) {
+    const thumb = document.createElement("img");
+    thumb.src = entry.thumb;
+    thumb.alt = "";
+    thumb.loading = "lazy";
+    thumb.onerror = () => { thumb.remove(); };
+    thumbWrap.appendChild(thumb);
+  }
+
+  const info = document.createElement("div");
+  info.className = "game-card-info";
+  const name = document.createElement("div");
+  name.className = "game-card-name";
+  name.textContent = entry.name;
+  info.appendChild(name);
+  if (entry.tags?.length) {
+    const tags = document.createElement("div");
+    tags.className = "game-card-tags";
+    tags.textContent = entry.tags.slice(0, 3).join(" · ");
+    info.appendChild(tags);
+  }
+
+  const fav = document.createElement("button");
+  fav.className = `game-fav${favorited ? " active" : ""}`;
+  fav.innerHTML = STAR_SVG;
+  fav.setAttribute("aria-label", `${favorited ? "Unfavorite" : "Favorite"} ${entry.name}`);
+  fav.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onFav(entry.id);
+    fav.classList.toggle("active");
+    const nowFav = fav.classList.contains("active");
+    fav.setAttribute("aria-label", `${nowFav ? "Unfavorite" : "Favorite"} ${entry.name}`);
+  });
+
+  card.appendChild(thumbWrap);
+  card.appendChild(info);
+  card.appendChild(fav);
+  card.addEventListener("click", () => onOpen(entry));
+  return card;
+}
+
+function debounce(fn, ms) {
+  let t;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), ms);
+  };
+}
+
+function persistCatalogPrefs() {
+  if (!currentUser) return;
+  scheduleCatalogPrefs({
+    gameFavs: getFavorites(),
+    gameRecents: getRecentGames(),
+    appFavs: getAppFavorites(),
+    appRecents: getRecentApps(),
+  });
+}
+
+function applyPrefList(remote, getLocal, hydrate) {
+  if (!Array.isArray(remote)) return false;
+  if (remote.length) {
+    hydrate(remote);
+    return false;
+  }
+  return getLocal().length > 0;
+}
+
+async function hydrateCatalogPrefs() {
+  if (!currentUser) return;
+  const remote = await loadCatalogPrefs();
+  if (!remote) return;
+  const recovered = [
+    applyPrefList(remote.gameFavs, getFavorites, hydrateFavorites),
+    applyPrefList(remote.gameRecents, getRecentGames, hydrateRecents),
+    applyPrefList(remote.appFavs, getAppFavorites, hydrateAppFavorites),
+    applyPrefList(remote.appRecents, getRecentApps, hydrateAppRecents),
+  ].some(Boolean);
+  if (recovered) persistCatalogPrefs();
+}
+
+function launchCatalogEntry(entry, kind) {
+  if (!entry?.url) return;
+  if (kind === "game") recordGamePlayed(entry);
+  else recordAppUsed(entry);
+  persistCatalogPrefs();
+  navigateTo(entry.url, entry.id);
+}
+
+function renderTagBar(containerId, tags, searchId, renderGrid) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = "";
   for (const tag of tags) {
     const btn = document.createElement("button");
     btn.className = `tag-btn${tag === "all" ? " active" : ""}`;
@@ -461,95 +651,147 @@ function renderGamesTags() {
     btn.addEventListener("click", () => {
       container.querySelectorAll(".tag-btn").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
-      renderGamesGrid(document.getElementById("games-search").value, tag);
+      renderGrid(document.getElementById(searchId)?.value || "", tag);
     });
     container.appendChild(btn);
   }
 }
 
+function renderGamesTags() {
+  renderTagBar("games-tags", getAllTags(), "games-search", renderGamesGrid);
+}
+
 function wireGames() {
   const searchInput = document.getElementById("games-search");
-  searchInput.addEventListener("input", () => {
-    const activeTagBtn = document.querySelector(".tag-btn.active");
-    const tag = activeTagBtn?.textContent || "all";
-    renderGamesGrid(searchInput.value, tag);
-  });
-
+  if (searchInput) {
+    searchInput.addEventListener("input", debounce(() => {
+      const tag = document.querySelector("#games-tags .tag-btn.active")?.textContent || "all";
+      renderGamesGrid(searchInput.value, tag);
+    }, 120));
+  }
   renderGamesGrid("", "all");
 }
 
 function renderGamesGrid(query, tag) {
-  const container = document.getElementById("games-grid");
+  const browsingAll = !String(query || "").trim() && (!tag || tag === "all");
+  const main = document.getElementById("games-grid");
   const games = filterGames(query || "", tag || "all");
-  container.innerHTML = "";
-
-  if (games.length === 0) {
-    container.innerHTML = '<p class="empty-state">No games found.</p>';
-    return;
+  if (main) {
+    main.innerHTML = "";
+    if (!games.length) {
+      main.innerHTML = '<p class="empty-state">No games found.</p>';
+    } else {
+      for (const g of games) {
+        main.appendChild(createCatalogCard(g, {
+          favorited: isFavorite(g.id),
+          onFav: (id) => { toggleFavorite(id); persistCatalogPrefs(); renderGamesGrid(query, tag); },
+          onOpen: (entry) => launchCatalogEntry(entry, "game"),
+        }));
+      }
+    }
   }
 
-  for (const game of games) {
-    const card = document.createElement("div");
-    card.className = "game-card";
-    card.style.position = "relative";
-
-    // Thumbnail with emoji fallback (CSS expects .game-card-thumb 16/10 box)
-    const thumbWrap = document.createElement("div");
-    thumbWrap.className = "game-card-thumb";
-    if (game.thumb) {
-      const thumb = document.createElement("img");
-      thumb.src = game.thumb;
-      thumb.alt = "";
-      thumb.loading = "lazy";
-      thumb.onerror = () => {
-        thumb.remove();
-        thumbWrap.textContent = game.icon || "🎮";
-      };
-      thumbWrap.appendChild(thumb);
-    } else {
-      thumbWrap.textContent = game.icon || "🎮";
-    }
-
-    const info = document.createElement("div");
-    info.className = "game-card-info";
-    const name = document.createElement("div");
-    name.className = "game-card-name";
-    name.textContent = game.name;
-    info.appendChild(name);
-    if (game.tags?.length) {
-      const tags = document.createElement("div");
-      tags.className = "game-card-tags";
-      tags.textContent = game.tags.slice(0, 3).join(" · ");
-      info.appendChild(tags);
-    }
-
-        const fav = document.createElement("button");
-    fav.className = `game-fav${isFavorite(game.id) ? " active" : ""}`;
-    fav.textContent = "★";
-    fav.setAttribute("aria-label", `${isFavorite(game.id) ? "Unfavorite" : "Favorite"} ${game.name}`);
-    fav.addEventListener("click", (e) => {
-      e.stopPropagation();
-      toggleFavorite(game.id);
-      fav.classList.toggle("active");
-      fav.setAttribute("aria-label", `${isFavorite(game.id) ? "Unfavorite" : "Favorite"} ${game.name}`);
-    });
-
-    card.appendChild(thumbWrap);
-    card.appendChild(info);
-    card.appendChild(fav);
-
-    card.addEventListener("click", () => {
-      recordGamePlayed(game);
-      if (!game.url) return;
-
-      if (game.url.startsWith("/")) {
-        window.open(game.url, "_blank");
-      } else {
-        navigateTo(game.url);
+  const favSection = document.getElementById("games-fav-section");
+  const favGrid = document.getElementById("games-fav-grid");
+  const favEntries = getFavorites().map(getGameById).filter(Boolean);
+  if (favSection && favGrid) {
+    favSection.hidden = !browsingAll || favEntries.length === 0;
+    if (!favSection.hidden) {
+      favGrid.innerHTML = "";
+      for (const g of favEntries) {
+        favGrid.appendChild(createCatalogCard(g, {
+          favorited: true,
+          onFav: (id) => { toggleFavorite(id); persistCatalogPrefs(); renderGamesGrid(query, tag); },
+          onOpen: (entry) => launchCatalogEntry(entry, "game"),
+        }));
       }
-    });
+    }
+  }
 
-    container.appendChild(card);
+  const recentSection = document.getElementById("games-recent-section");
+  const recentGrid = document.getElementById("games-recent-grid");
+  const recentEntries = getRecentGames().map((r) => getGameById(r.id)).filter(Boolean);
+  if (recentSection && recentGrid) {
+    recentSection.hidden = !browsingAll || recentEntries.length === 0;
+    if (!recentSection.hidden) {
+      recentGrid.innerHTML = "";
+      for (const g of recentEntries) {
+        recentGrid.appendChild(createCatalogCard(g, {
+          favorited: isFavorite(g.id),
+          onFav: (id) => { toggleFavorite(id); persistCatalogPrefs(); renderGamesGrid(query, tag); },
+          onOpen: (entry) => launchCatalogEntry(entry, "game"),
+        }));
+      }
+    }
+  }
+}
+
+function renderAppsTags() {
+  renderTagBar("apps-tags", getAppTags(), "apps-search", renderAppsGrid);
+}
+
+function wireApps() {
+  const searchInput = document.getElementById("apps-search");
+  if (searchInput) {
+    searchInput.addEventListener("input", debounce(() => {
+      const tag = document.querySelector("#apps-tags .tag-btn.active")?.textContent || "all";
+      renderAppsGrid(searchInput.value, tag);
+    }, 120));
+  }
+  renderAppsGrid("", "all");
+}
+
+function renderAppsGrid(query, tag) {
+  const browsingAll = !String(query || "").trim() && (!tag || tag === "all");
+  const main = document.getElementById("apps-grid");
+  const apps = filterApps(query || "", tag || "all");
+  if (main) {
+    main.innerHTML = "";
+    if (!apps.length) {
+      main.innerHTML = '<p class="empty-state">No apps found.</p>';
+    } else {
+      for (const a of apps) {
+        main.appendChild(createCatalogCard(a, {
+          favorited: isAppFavorite(a.id),
+          onFav: (id) => { toggleAppFavorite(id); persistCatalogPrefs(); renderAppsGrid(query, tag); },
+          onOpen: (entry) => launchCatalogEntry(entry, "app"),
+        }));
+      }
+    }
+  }
+
+  const favSection = document.getElementById("apps-fav-section");
+  const favGrid = document.getElementById("apps-fav-grid");
+  const favEntries = getAppFavorites().map(getAppById).filter(Boolean);
+  if (favSection && favGrid) {
+    favSection.hidden = !browsingAll || favEntries.length === 0;
+    if (!favSection.hidden) {
+      favGrid.innerHTML = "";
+      for (const a of favEntries) {
+        favGrid.appendChild(createCatalogCard(a, {
+          favorited: true,
+          onFav: (id) => { toggleAppFavorite(id); persistCatalogPrefs(); renderAppsGrid(query, tag); },
+          onOpen: (entry) => launchCatalogEntry(entry, "app"),
+        }));
+      }
+    }
+  }
+
+  const recentSection = document.getElementById("apps-recent-section");
+  const recentGrid = document.getElementById("apps-recent-grid");
+  const recentEntries = getRecentApps().map((r) => getAppById(r.id)).filter(Boolean);
+  if (recentSection && recentGrid) {
+    recentSection.hidden = !browsingAll || recentEntries.length === 0;
+    if (!recentSection.hidden) {
+      recentGrid.innerHTML = "";
+      for (const a of recentEntries) {
+        recentGrid.appendChild(createCatalogCard(a, {
+          favorited: isAppFavorite(a.id),
+          onFav: (id) => { toggleAppFavorite(id); persistCatalogPrefs(); renderAppsGrid(query, tag); },
+          onOpen: (entry) => launchCatalogEntry(entry, "app"),
+        }));
+      }
+    }
   }
 }
 
@@ -680,16 +922,26 @@ function formatTime(ts) {
 
 function wireProxyToolbar() {
   document.getElementById("proxy-back").addEventListener("click", () => {
-    if (!scramjetFrame) return;
-    scramjetFrame.back();
+    if (scramjetFrame) {
+      scramjetFrame.back();
+      return;
+    }
+    try { document.getElementById("proxy-frame")?.contentWindow?.history.back(); } catch {}
   });
   document.getElementById("proxy-forward").addEventListener("click", () => {
-    if (!scramjetFrame) return;
-    scramjetFrame.forward();
+    if (scramjetFrame) {
+      scramjetFrame.forward();
+      return;
+    }
+    try { document.getElementById("proxy-frame")?.contentWindow?.history.forward(); } catch {}
   });
   document.getElementById("proxy-reload").addEventListener("click", () => {
-    if (!scramjetFrame) return;
-    scramjetFrame.reload();
+    if (scramjetFrame) {
+      scramjetFrame.reload();
+      return;
+    }
+    const frame = document.getElementById("proxy-frame");
+    if (frame?.src) frame.src = frame.src;
   });
   document.getElementById("proxy-home").addEventListener("click", goHome);
 
@@ -764,27 +1016,63 @@ function updateBookmarkButton(url) {
   }
 }
 
+function hideCatalogViews() {
+  const gamesView = document.getElementById("games-view");
+  const appsView = document.getElementById("apps-view");
+  if (gamesView) gamesView.hidden = true;
+  if (appsView) appsView.hidden = true;
+}
+
 function wireGamesView() {
   const gamesBtn = document.getElementById("btn-games");
   const backBtn = document.getElementById("games-back");
   if (gamesBtn) gamesBtn.addEventListener("click", showGamesView);
-  if (backBtn) backBtn.addEventListener("click", hideGamesView);
+  if (backBtn) backBtn.addEventListener("click", hideCatalogToHome);
+}
+
+function wireAppsView() {
+  const appsBtn = document.getElementById("btn-apps");
+  const backBtn = document.getElementById("apps-back");
+  if (appsBtn) appsBtn.addEventListener("click", showAppsView);
+  if (backBtn) backBtn.addEventListener("click", hideCatalogToHome);
 }
 
 function showGamesView() {
   closeAllPanels();
   if (proxyActive) goHome();
   const homeView = document.getElementById("home-view");
-  const gamesView = document.getElementById("games-view");
+  hideCatalogViews();
   if (homeView) homeView.style.display = "none";
+  const gamesView = document.getElementById("games-view");
   if (gamesView) gamesView.hidden = false;
+  renderGamesGrid(
+    document.getElementById("games-search")?.value || "",
+    document.querySelector("#games-tags .tag-btn.active")?.textContent || "all"
+  );
+}
+
+function showAppsView() {
+  closeAllPanels();
+  if (proxyActive) goHome();
+  const homeView = document.getElementById("home-view");
+  hideCatalogViews();
+  if (homeView) homeView.style.display = "none";
+  const appsView = document.getElementById("apps-view");
+  if (appsView) appsView.hidden = false;
+  renderAppsGrid(
+    document.getElementById("apps-search")?.value || "",
+    document.querySelector("#apps-tags .tag-btn.active")?.textContent || "all"
+  );
+}
+
+function hideCatalogToHome() {
+  const homeView = document.getElementById("home-view");
+  hideCatalogViews();
+  if (homeView) homeView.style.display = "";
 }
 
 function hideGamesView() {
-  const homeView = document.getElementById("home-view");
-  const gamesView = document.getElementById("games-view");
-  if (gamesView) gamesView.hidden = true;
-  if (homeView) homeView.style.display = "";
+  hideCatalogToHome();
 }
 
 function wireLogoClick() {
@@ -793,7 +1081,7 @@ function wireLogoClick() {
     logo.style.cursor = "pointer";
     logo.addEventListener("click", () => {
       if (proxyActive) goHome();
-      else hideGamesView();
+      else hideCatalogToHome();
     });
   }
 }
@@ -923,6 +1211,70 @@ function wireVaultSettings() {
   });
 }
 
+function saveSlotLabel(id) {
+  if (id.startsWith("c-")) {
+    const catalogId = id.slice(2);
+    return getGameById(catalogId)?.name || getAppById(catalogId)?.name || catalogId;
+  }
+  if (id.startsWith("h-")) return id.slice(2);
+  return id;
+}
+
+async function refreshSavesStatus() {
+  const el = document.getElementById("saves-status");
+  const list = document.getElementById("saves-list");
+  if (!el) return;
+  try {
+    const r = await fetch("/api/saves", { headers: { Accept: "application/json" } });
+    if (!r.ok) { el.textContent = "Unavailable"; return; }
+    const j = await r.json();
+    const slots = (j.saves || []).filter((s) => s.id !== "c-catalog-prefs");
+    if (!slots.length) {
+      el.textContent = "None yet. Play a game or open an app and progress is saved here.";
+      if (list) { list.innerHTML = ""; list.hidden = true; }
+      return;
+    }
+    el.textContent = `${slots.length} saved ${slots.length === 1 ? "title" : "titles"}.`;
+    if (list) {
+      list.hidden = false;
+      list.innerHTML = "";
+      for (const s of slots) {
+        const li = document.createElement("li");
+        const name = document.createElement("span");
+        name.textContent = saveSlotLabel(s.id);
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "saves-list-del";
+        del.textContent = "Forget";
+        del.setAttribute("aria-label", `Forget save for ${name.textContent}`);
+        del.addEventListener("click", async () => {
+          await fetch(`/api/saves/${encodeURIComponent(s.id)}`, { method: "DELETE" });
+          refreshSavesStatus();
+        });
+        li.appendChild(name);
+        li.appendChild(del);
+        list.appendChild(li);
+      }
+    }
+  } catch {
+    el.textContent = "Unavailable";
+  }
+}
+
+function wireSavesSettings() {
+  const clearBtn = document.getElementById("saves-clear");
+  if (!clearBtn) return;
+  clearBtn.addEventListener("click", async () => {
+    clearBtn.disabled = true;
+    try {
+      await fetch("/api/saves", { method: "DELETE" });
+    } finally {
+      clearBtn.disabled = false;
+      refreshSavesStatus();
+    }
+  });
+}
+
 function showToast(message) {
   const existing = document.querySelector(".toast.dynamic");
   if (existing) existing.remove();
@@ -953,6 +1305,10 @@ window.showProxyError = function (detail) {
   document.getElementById("error-retry").onclick = () => {
     overlay.hidden = true;
     if (scramjetFrame) scramjetFrame.reload();
+    else {
+      const frame = document.getElementById("proxy-frame");
+      if (frame?.src) frame.src = frame.src;
+    }
   };
 
   document.getElementById("error-home").onclick = () => {
@@ -962,3 +1318,5 @@ window.showProxyError = function (detail) {
 };
 
 init().catch(console.error);
+
+window.__blossomSyncSave = syncSave;

@@ -218,6 +218,7 @@ await step("a11y", "icon-only buttons expose accessible names", async () => {
       btnHistory: check("#btn-history"),
       btnSettings: check("#btn-settings"),
       btnGames: check("#btn-games"),
+      btnApps: check("#btn-apps"),
     };
   });
   const ok = Object.values(names).every((v) => v !== "NONE" && v !== "missing" && !v.startsWith("✕") && !v.startsWith("★"));

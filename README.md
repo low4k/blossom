@@ -12,11 +12,11 @@ Built on Scramjet + Wisp, with a session-based auth layer, per-user sync (bookma
 - **Account system** - register/login, httpOnly session cookies, bcrypt hashes
 - **Server-side sync** - bookmarks and history stored per user in SQLite
 - **Admin dashboard** - user management, feature toggles, live stats (dev role only)
-- **Feature flags** - enable/disable proxy, games, bookmarks, settings per user
+- **Feature flags** - enable/disable proxy, games, apps, bookmarks, settings per user
 - **Tab cloaking** - customize title/favicon to blend in
 - **Panic key** - instant redirect to a safe URL
 - **Domain survival** - mirror list with automatic failover
-- **Built-in games** - Breakout, Memory, Snake
+- **Built-in games and apps** - searchable catalogs with real art, favorites, recents, and per-account save sync. Catalog URLs are launch-tested through the proxy; dead hosts and Google JS apps that blank under Scramjet-alpha are omitted.
 - **PWA** - installable, service worker cached
 - **Rate limiting**, Helmet security headers, COOP/COEP for SharedArrayBuffer
 
@@ -81,14 +81,19 @@ The Settings panel shows saved site sessions and a "Forget saved sessions"
 button. Detection of challenge pages posts toast guidance instead of letting
 the page spin into a loop.
 
-**Phase 2 (plumbing)** — `STEALTH_PROXY_URL` points the keep-alive probes at
+**Phase 2 (plumbing only)** — `STEALTH_PROXY_URL` points the keep-alive probes at
 an HTTP CONNECT proxy you run yourself (e.g. a Go **uTLS** or
 **curl-impersonate** CONNECT sidecar) so those probes carry a real Chrome TLS
-fingerprint. Note that proxied browsing TLS runs in the user's browser
-(Epoxy/libcurl.wasm), so the browser-side fingerprint can only be changed by
-swapping the WASM transport — see `docker-compose.solvers.yml` notes.
+fingerprint.
 
-**Phase 3 (plumbing)** — `SOLVER_URL` accepts an external open-source solver
+**Decision:** Phase 2/3 stay optional plumbing and are not built into this
+repo. Proxied **browsing** TLS terminates in the user's browser
+(Epoxy/libcurl.wasm), so a server-side uTLS sidecar cannot change what Google
+sees for page traffic. Changing that would mean swapping the WASM transport
+for curl-impersonate — a Scramjet/Epoxy replacement, not a Blossom patch.
+See `docker-compose.solvers.yml`.
+
+**Phase 3 (plumbing only)** — `SOLVER_URL` accepts an external open-source solver
 (Camoufox, Turnstile-solver-style HTTP service). When set, challenge events
 are also POSTed to `${SOLVER_URL}/solve` with `{host, url, cookies}`, the
 reply `{cookies: [...]}` replaces the vault entry, and the next page load

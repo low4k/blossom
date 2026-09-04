@@ -94,6 +94,15 @@ db.exec(`
     created_at INTEGER NOT NULL DEFAULT (unixepoch())
   );
   CREATE INDEX IF NOT EXISTS idx_captcha_events_user ON captcha_events(user_id, created_at);
+
+  -- Per-account game/app save slots (storage snapshots: localStorage + IDB)
+  CREATE TABLE IF NOT EXISTS saves (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    save_id TEXT NOT NULL,
+    data TEXT NOT NULL,
+    updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+    PRIMARY KEY (user_id, save_id)
+  );
 `);
 
 // 2FA columns (safe to re-run: duplicate-column errors are expected/ignored)
@@ -111,9 +120,18 @@ for (const stmt of [
 const DEFAULT_FEATURES = {
   proxy: true,
   games: true,
+  apps: true,
   bookmarks: true,
   settings: true,
 };
+
+function parseFeatures(raw) {
+  try {
+    return { ...DEFAULT_FEATURES, ...(typeof raw === "string" ? JSON.parse(raw || "{}") : raw || {}) };
+  } catch {
+    return { ...DEFAULT_FEATURES };
+  }
+}
 
 // Dev account is only seeded when DEV_EMAIL and DEV_PASS are explicitly provided
 // (e.g. via environment secrets on the host). No hardcoded fallbacks.
@@ -130,7 +148,7 @@ if (DEV_EMAIL && DEV_PASS) {
       "Developer",
       hashSync(DEV_PASS, 10),
       "dev",
-      JSON.stringify({ proxy: true, games: true, bookmarks: true, settings: true, admin: true })
+      JSON.stringify({ ...DEFAULT_FEATURES, admin: true })
     );
     console.log("[DB] Dev account seeded");
   }
@@ -175,7 +193,7 @@ export function authenticateUser(email, password) {
     email: user.email,
     displayName: user.display_name,
     role: user.role,
-    features: JSON.parse(user.features),
+    features: parseFeatures(user.features),
     totpEnabled: !!user.totp_enabled,
     totpSecret: user.totp_secret || null,
   };
@@ -189,7 +207,7 @@ export function getUserById(id) {
     email: user.email,
     displayName: user.display_name,
     role: user.role,
-    features: JSON.parse(user.features),
+    features: parseFeatures(user.features),
     createdAt: user.created_at,
     lastLogin: user.last_login,
   };
@@ -219,7 +237,7 @@ export function validateSession(token) {
     email: session.email,
     displayName: session.display_name,
     role: session.role,
-    features: JSON.parse(session.features),
+    features: parseFeatures(session.features),
   };
 }
 
@@ -240,14 +258,14 @@ export function getAllUsers() {
     email: u.email,
     displayName: u.display_name,
     role: u.role,
-    features: JSON.parse(u.features),
+    features: parseFeatures(u.features),
     createdAt: u.created_at,
     lastLogin: u.last_login,
   }));
 }
 
 export function updateUserFeatures(userId, features) {
-  db.prepare("UPDATE users SET features = ? WHERE id = ?").run(JSON.stringify(features), userId);
+  db.prepare("UPDATE users SET features = ? WHERE id = ?").run(JSON.stringify(parseFeatures(features)), userId);
 }
 
 export function updateUserRole(userId, role) {
@@ -428,6 +446,36 @@ export function getRecentVaultRows(maxAgeSeconds = 24 * 60 * 60) {
     `SELECT user_id, host, cookies, updated_at FROM cookie_vault
      WHERE updated_at > unixepoch() - ?`
   ).all(maxAgeSeconds);
+}
+
+// ---- Per-account game/app saves ----
+
+export function getSaveList(userId) {
+  return db.prepare(
+    "SELECT save_id AS id, length(data) AS sizeBytes, updated_at AS updatedAt FROM saves WHERE user_id = ? ORDER BY updated_at DESC"
+  ).all(userId);
+}
+
+export function getSave(userId, saveId) {
+  const row = db.prepare(
+    "SELECT data, updated_at AS updatedAt FROM saves WHERE user_id = ? AND save_id = ?"
+  ).get(userId, saveId);
+  return row || null;
+}
+
+export function putSave(userId, saveId, dataJson) {
+  db.prepare(
+    `INSERT INTO saves (user_id, save_id, data, updated_at) VALUES (?, ?, ?, unixepoch())
+     ON CONFLICT(user_id, save_id) DO UPDATE SET data = excluded.data, updated_at = unixepoch()`
+  ).run(userId, saveId, dataJson);
+}
+
+export function deleteSave(userId, saveId) {
+  db.prepare("DELETE FROM saves WHERE user_id = ? AND save_id = ?").run(userId, saveId);
+}
+
+export function deleteAllSaves(userId, exceptId = "c-catalog-prefs") {
+  db.prepare("DELETE FROM saves WHERE user_id = ? AND save_id != ?").run(userId, exceptId);
 }
 
 export function getCaptchaEventStats(userId) {

@@ -32,8 +32,9 @@ try {
   await step("settings", "changing cloak updates title/favicon and persists", async () => {
     await page.keyboard.press("Escape");
     await page.click("#btn-settings");
-    await page.waitForTimeout(500);
-    await page.selectOption("#setting-cloak", "classroom");
+    await page.locator("#settings-panel").waitFor({ state: "visible" });
+    await page.locator("#setting-cloak").waitFor({ state: "visible" });
+    await page.locator("#setting-cloak").selectOption("classroom", { force: true });
     await page.waitForTimeout(300);
     const title = await page.title();
     const favicon = await page.evaluate(() => document.querySelector("link[rel*='icon']")?.href || "");
@@ -72,8 +73,9 @@ try {
     await page.goto(`${base}/`, { waitUntil: "load" });
     await page.waitForTimeout(2000);
     await page.click("#btn-settings");
-    await page.waitForTimeout(400);
-    await page.selectOption("#setting-search-engine", "https://www.bing.com/search?q=%s");
+    await page.locator("#settings-panel").waitFor({ state: "visible" });
+    await page.locator("#setting-search-engine").waitFor({ state: "visible" });
+    await page.locator("#setting-search-engine").selectOption("https://www.bing.com/search?q=%s", { force: true });
     await page.waitForTimeout(200);
     await page.reload({ waitUntil: "load" });
     await page.waitForTimeout(2000);
@@ -124,18 +126,17 @@ try {
     record("games", "favorite persists across reload", favAfterReload.active === true, JSON.stringify(favAfterReload));
   });
 
-  await step("games", "local game opens in new tab; external routes via proxy", async () => {
-    const [popup] = await Promise.all([
-      context.waitForEvent("page", { timeout: 15000 }).catch(() => [null]),
-      page.locator(".game-card", { hasText: "Snake" }).first().click(),
-    ]);
+  await step("games", "local game opens in the play frame; external routes via proxy", async () => {
+    await page.locator(".game-card", { hasText: "Snake" }).first().click();
+    await page.waitForSelector("#proxy-frame", { timeout: 20000 });
     await page.waitForTimeout(800);
-    let localOk = false;
-    if (popup && popup.url) {
-      localOk = popup.url().includes("/games/snake.html");
-      await popup.close();
-    }
-    record("games", "local game opens in new tab", localOk, popup ? popup.url() : "no popup");
+    const localSrc = await page.evaluate(() => document.getElementById("proxy-frame")?.src || "");
+    record("games", "local game opens in play frame", localSrc.includes("/games/snake.html"), `src=${localSrc}`);
+
+    await page.click("#proxy-home");
+    await page.waitForTimeout(600);
+    await page.click("#btn-games");
+    await page.waitForTimeout(800);
 
     await page.locator(".game-card", { hasText: "2048" }).first().click();
     await page.waitForSelector("#proxy-frame", { timeout: 20000 });

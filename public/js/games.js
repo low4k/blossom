@@ -1,5 +1,3 @@
-
-
 let gamesManifest = [];
 let favorites = JSON.parse(localStorage.getItem("blossom-game-favs") || "[]");
 let recentGames = JSON.parse(localStorage.getItem("blossom-game-recents") || "[]");
@@ -19,7 +17,7 @@ export async function loadGames() {
 export function getGames() { return gamesManifest; }
 export function getFavorites() { return favorites; }
 export function getRecentGames() { return recentGames; }
-export function getGameById(id) { return gamesManifest.find(g => g.id === id) || null; }
+export function getGameById(id) { return gamesManifest.find((g) => g.id === id) || null; }
 
 export function getAllTags() {
   const tags = new Set();
@@ -30,15 +28,16 @@ export function getAllTags() {
 }
 
 export function filterGames(query, tag) {
-  searchQuery = query.toLowerCase();
-  activeTag = tag;
+  searchQuery = String(query || "").trim().toLowerCase();
+  activeTag = tag || "all";
+  const tagLc = String(activeTag).toLowerCase();
 
   return gamesManifest.filter((g) => {
-    const matchTag = tag === "all" || (g.tags && g.tags.includes(tag));
-    const matchSearch = !searchQuery ||
-      g.name.toLowerCase().includes(searchQuery) ||
-      (g.tags && g.tags.some((t) => t.includes(searchQuery)));
-    return matchTag && matchSearch;
+    const matchTag = tagLc === "all" || (g.tags && g.tags.some((t) => t.toLowerCase() === tagLc));
+    if (!matchTag) return false;
+    if (!searchQuery) return true;
+    const hay = [g.name, g.id, g.url, ...(g.tags || [])].join(" ").toLowerCase();
+    return hay.includes(searchQuery);
   });
 }
 
@@ -56,11 +55,21 @@ export function isFavorite(id) {
   return favorites.includes(id);
 }
 
-export function recordGamePlayed(game) {
+export function hydrateFavorites(ids) {
+  if (!Array.isArray(ids)) return;
+  favorites = ids.filter((id) => typeof id === "string");
+  localStorage.setItem("blossom-game-favs", JSON.stringify(favorites));
+}
 
+export function hydrateRecents(list) {
+  if (!Array.isArray(list)) return;
+  recentGames = list.filter((r) => r && r.id).slice(0, 20);
+  localStorage.setItem("blossom-game-recents", JSON.stringify(recentGames));
+}
+
+export function recordGamePlayed(game) {
   recentGames = recentGames.filter((r) => r.id !== game.id);
   recentGames.unshift({ id: game.id, name: game.name, time: Date.now() });
-
   if (recentGames.length > 20) recentGames.length = 20;
   localStorage.setItem("blossom-game-recents", JSON.stringify(recentGames));
 }
