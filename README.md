@@ -124,17 +124,19 @@ docker build -t blossom .
 docker run -p 8080:8080 -e DEV_EMAIL=you@example.com -e DEV_PASS=yourpass blossom
 ```
 
-### Fly.io
+### Northflank
 
-A [fly.toml](fly.toml) is included. Edit the app name and region, then:
+Production runs on Northflank (project `asdsa`). The combined service builds
+from GitHub `main` via the Dockerfile, with SQLite on volume `blossom-data`
+at `/app/data`.
 
 ```bash
-fly launch --copy-config
-fly secrets set DEV_EMAIL=you@example.com DEV_PASS=yourpass
-fly deploy
+# after northflank login / API token
+node scripts/northflank-setup.mjs probe
 ```
 
-See [DEPLOY.md](DEPLOY.md) for full notes.
+GitHub Actions only smoke-tests. Northflank rebuilds on push to `main`.
+
 
 ## Project layout
 

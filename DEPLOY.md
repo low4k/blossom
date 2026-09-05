@@ -1,4 +1,20 @@
-# Deploying Blossom on Railway + Cloudflare + low.monster
+# Deploying Blossom
+
+Production hosting is **Northflank** (team `adadadss-team`, project `asdsa`).
+Fly.io is no longer used for the live site because that hostname is blocked.
+
+The combined service `blossom` builds the Dockerfile from GitHub `main`,
+exposes HTTP (and WebSockets) on port 8080, and mounts volume `blossom-data`
+at `/app/data`.
+
+See [BACKUP.md](BACKUP.md) for the SQLite volume.
+
+The notes below are older custom-domain / CDN options (Railway, Cloudflare).
+Use them only if you put a domain in front of the Northflank URL.
+
+---
+
+## Why not Cloudflare Pages?
 
 ## Why not Cloudflare Pages?
 

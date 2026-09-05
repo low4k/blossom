@@ -5,3 +5,10 @@ node_modules
 .env.*
 !.env.example
 blossom.db
+data
+fly_token.txt
+fly_dev_pass.txt
+northflank_token.txt
+test/e2e/qa-data
+test/e2e/artifacts
+.cursor

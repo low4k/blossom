@@ -24,6 +24,7 @@ setup.txt
 boot.txt
 fly_token.txt
 fly_dev_pass.txt
+northflank_token.txt
 fly_auth_out.txt
 fly_auth_err.txt
 fly_install.ps1

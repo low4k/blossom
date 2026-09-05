@@ -49,5 +49,6 @@ It runs as a PWA with a mobile-first UI.
 - `npm start`, `npm test` (smoke), `node test/e2e/run-all.test.mjs` (full E2E;
   uses an isolated DB in `test/e2e/qa-data/` via `DB_PATH`).
 - Commit small, run the full suite before/after changes, push to `main`
-  (GitHub Actions smoke-tests + deploys to Fly when the billing lock is cleared).
-- Fly app: `blossom-nowvdq`, region `ams`, volume `blossom_data` mounted at `/app/data`.
+  (GitHub Actions smoke-tests; Northflank builds from GitHub).
+- Hosting: Northflank team `adadadss-team`, project `asdsa`, service `blossom`,
+  volume `blossom-data` mounted at `/app/data` (`DB_PATH=/app/data/blossom.db`).
