@@ -235,17 +235,14 @@
           <button id="ai-sidebar-toggle" class="topbar-btn ai-only-mobile" title="Chats" aria-label="Open chats" type="button">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
           </button>
+          <button id="ai-sidebar-expand" class="topbar-btn" title="Show chats" aria-label="Show chats" type="button">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+          </button>
           <a href="/" id="ai-back" class="topbar-btn" title="Back to Home" aria-label="Back to Home">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
           </a>
           <div class="ai-header-copy">
             <h1>Blossom AI</h1>
-            <div class="ai-model-row">
-              <label class="sr-only" for="ai-model">Model</label>
-              <select id="ai-model" class="ai-pill ai-model" aria-label="Model"></select>
-              <button type="button" id="ai-web" class="ai-ghost" title="Ask the model to search the web when it can">Web</button>
-              <button type="button" id="ai-handoff" class="ai-ghost" title="This assistant is automated">Need a human?</button>
-            </div>
             <p id="ai-status" class="ai-status" hidden></p>
             <p id="ai-tokens" class="ai-tokens" hidden></p>
           </div>
@@ -268,19 +265,27 @@
         <form id="ai-composer" class="ai-composer">
           <div id="ai-pending" class="ai-pending" hidden></div>
           <div class="ai-composer-shell">
-            <button type="button" id="ai-attach" class="ai-icon-btn" title="Attach image or file" aria-label="Attach">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.4 11.6l-8.5 8.5a6 6 0 01-8.5-8.5l9-9a4 4 0 015.7 5.7l-9.2 9.1a2 2 0 01-2.8-2.8l8.1-8.2"/></svg>
-            </button>
-            <input id="ai-attach-input" type="file" hidden accept="image/png,image/jpeg,image/gif,image/webp,text/plain,application/pdf" multiple />
-            <textarea id="ai-input" rows="1" placeholder="Message Blossom AI…" autocomplete="off"></textarea>
-            <span id="ai-count" class="ai-count" hidden></span>
-            <button type="button" id="ai-voice" class="ai-icon-btn" title="Voice input" aria-label="Voice input">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg>
-            </button>
-            <button type="button" id="ai-stop" class="ai-stop" hidden>Stop</button>
-            <button type="submit" id="ai-send" class="ai-send" aria-label="Send">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg>
-            </button>
+            <div class="ai-composer-top">
+              <button type="button" id="ai-attach" class="ai-icon-btn" title="Attach image or file" aria-label="Attach">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.4 11.6l-8.5 8.5a6 6 0 01-8.5-8.5l9-9a4 4 0 015.7 5.7l-9.2 9.1a2 2 0 01-2.8-2.8l8.1-8.2"/></svg>
+              </button>
+              <input id="ai-attach-input" type="file" hidden accept="image/png,image/jpeg,image/gif,image/webp,text/plain,application/pdf" multiple />
+              <label class="sr-only" for="ai-model">Model</label>
+              <select id="ai-model" class="ai-model" aria-label="Model"></select>
+              <textarea id="ai-input" rows="1" placeholder="Message Blossom AI…" autocomplete="off"></textarea>
+              <span id="ai-count" class="ai-count" hidden></span>
+              <button type="button" id="ai-voice" class="ai-icon-btn" title="Voice input" aria-label="Voice input">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg>
+              </button>
+              <button type="button" id="ai-stop" class="ai-stop" hidden>Stop</button>
+              <button type="submit" id="ai-send" class="ai-send" aria-label="Send">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg>
+              </button>
+            </div>
+            <div class="ai-composer-tools">
+              <button type="button" id="ai-web" class="ai-ghost" title="Ask the model to search the web when it can">Web</button>
+              <button type="button" id="ai-handoff" class="ai-ghost" title="This assistant is automated">Need a human?</button>
+            </div>
           </div>
           <p class="ai-disclaimer">Replies come from the selected model through Blossom. Images stay on this device unless you send them in a message.</p>
         </form>

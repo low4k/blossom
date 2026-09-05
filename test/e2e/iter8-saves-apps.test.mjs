@@ -43,6 +43,31 @@ try {
     const donate = await page.evaluate(() => !!document.querySelector(".donate-chip"));
     record("ai", "donate chip is present", donate);
     record("ai", "AI route is /ai", page.url() === `${base}/ai`, `url=${page.url()}`);
+    const chrome = await page.evaluate(() => {
+      const model = document.getElementById("ai-model");
+      const input = document.getElementById("ai-input");
+      const top = document.querySelector(".ai-composer-top");
+      return {
+        modelInComposer: !!(top && model && top.contains(model) && top.contains(input)),
+        expand: !!document.getElementById("ai-sidebar-expand"),
+      };
+    });
+    record("ai", "model picker is in the composer", chrome.modelInComposer, JSON.stringify(chrome));
+    const collapseBtn = page.locator("#ai-sidebar-collapse");
+    if (await collapseBtn.isVisible()) {
+      await collapseBtn.click();
+      await page.waitForTimeout(200);
+      const collapsed = await page.evaluate(() => getComputedStyle(document.getElementById("ai-sidebar")).display === "none");
+      const expandVisible = await page.locator("#ai-sidebar-expand").isVisible();
+      record("ai", "collapse hides sidebar", collapsed && expandVisible, `collapsed=${collapsed} expand=${expandVisible}`);
+      await page.click("#ai-sidebar-expand");
+      await page.waitForTimeout(200);
+      const restored = await page.evaluate(() => getComputedStyle(document.getElementById("ai-sidebar")).display !== "none");
+      record("ai", "expand restores sidebar", restored);
+    } else {
+      record("ai", "collapse hides sidebar", false, "collapse button not visible");
+      record("ai", "expand restores sidebar", false, "skipped");
+    }
     await page.click("#ai-back");
     await page.waitForTimeout(200);
     record("ai", "back returns to /", page.url() === `${base}/`, `url=${page.url()}`);

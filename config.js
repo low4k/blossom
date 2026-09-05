@@ -33,10 +33,10 @@ if (!(process.env.DB_PATH || "").includes("qa-data")) {
 }
 
 export const AI_MODELS = [
-  { id: "GLM-5.3-Flash", label: "GLM-5.3 Flash" },
-  { id: "MiMo-V2.5", label: "MiMo V2.5" },
-  { id: "Hy3", label: "Hy3" },
-  { id: "Qwen3.8-Flash", label: "Qwen3.8 Flash" },
+  { id: "glm-5.3-flash", label: "GLM-5.3 Flash", aliases: ["GLM-5.3-Flash"] },
+  { id: "mimo-v2.5", label: "MiMo V2.5", aliases: ["MiMo-V2.5"] },
+  { id: "hy3", label: "Hy3", aliases: ["Hy3", "hy3-preview"] },
+  { id: "qwen3.8-flash", label: "Qwen3.8 Flash", aliases: ["Qwen3.8-Flash"] },
 ];
 
 const config = {

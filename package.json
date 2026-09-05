@@ -1,6 +1,6 @@
 {
   "name": "blossom",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "description": "Blossom — a modern web proxy unblocker with smart transport fallback, domain survival, and mobile-first UI.",
   "type": "module",
   "engines": {

@@ -52,6 +52,7 @@ export function wireAi({ showToast, ai } = {}) {
   const sidebar = $("ai-sidebar");
   const toggle = $("ai-sidebar-toggle");
   const collapse = $("ai-sidebar-collapse");
+  const expand = $("ai-sidebar-expand");
   const search = $("ai-search");
   const jump = $("ai-jump");
   const chips = $("ai-chips");
@@ -71,8 +72,14 @@ export function wireAi({ showToast, ai } = {}) {
   let abortCtl = null;
   const MODEL_KEY = "blossom-ai-model";
 
+  function setNavCollapsed(on) {
+    view?.classList.toggle("ai-nav-collapsed", on);
+    collapse?.setAttribute("aria-expanded", on ? "false" : "true");
+    expand?.setAttribute("aria-expanded", on ? "false" : "true");
+  }
   toggle?.addEventListener("click", () => sidebar?.classList.toggle("open"));
-  collapse?.addEventListener("click", () => view?.classList.toggle("ai-nav-collapsed"));
+  collapse?.addEventListener("click", () => setNavCollapsed(true));
+  expand?.addEventListener("click", () => setNavCollapsed(false));
   $("ai-minimize")?.addEventListener("click", () => $("ai-back")?.click());
   $("ai-artifact-close")?.addEventListener("click", () => closeArtifact());
 
@@ -311,7 +318,7 @@ export function wireAi({ showToast, ai } = {}) {
   }
 
   function selectedModel() {
-    return $("ai-model")?.value || ai?.defaultModel || "GLM-5.3-Flash";
+    return $("ai-model")?.value || ai?.defaultModel || "glm-5.3-flash";
   }
 
   function collectCitations(obj, into) {
@@ -432,10 +439,11 @@ export function wireAi({ showToast, ai } = {}) {
         paintMessages();
         return;
       }
-      toast(err.message || "The assistant could not reply");
+      const reason = String(err.message || "The assistant could not reply");
+      toast(reason);
       setBusy(false);
       if (!acc) {
-        replaceLastAssistant(activeId, `Something went wrong generating a reply. You can retry from the message actions.`);
+        replaceLastAssistant(activeId, `Something went wrong generating a reply (${reason}). You can retry from the message actions.`);
         paintMessages();
       } else {
         paintMessages();
@@ -729,10 +737,10 @@ export function wireAi({ showToast, ai } = {}) {
   const modelSel = $("ai-model");
   if (modelSel) {
     const models = ai?.models?.length ? ai.models : [
-      { id: "GLM-5.3-Flash", label: "GLM-5.3 Flash" },
-      { id: "MiMo-V2.5", label: "MiMo V2.5" },
-      { id: "Hy3", label: "Hy3" },
-      { id: "Qwen3.8-Flash", label: "Qwen3.8 Flash" },
+      { id: "glm-5.3-flash", label: "GLM-5.3 Flash" },
+      { id: "mimo-v2.5", label: "MiMo V2.5" },
+      { id: "hy3", label: "Hy3" },
+      { id: "qwen3.8-flash", label: "Qwen3.8 Flash" },
     ];
     modelSel.innerHTML = "";
     for (const m of models) {
@@ -743,7 +751,9 @@ export function wireAi({ showToast, ai } = {}) {
     }
     let saved = "";
     try { saved = localStorage.getItem(MODEL_KEY) || ""; } catch {}
-    modelSel.value = models.some((m) => m.id === saved) ? saved : (ai?.defaultModel || models[0].id);
+    const sameId = (a, b) => String(a || "").toLowerCase().replace(/[^a-z0-9]/g, "") === String(b || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const matched = models.find((m) => sameId(m.id, saved));
+    modelSel.value = matched?.id || ai?.defaultModel || models[0].id;
     modelSel.addEventListener("change", () => {
       try { localStorage.setItem(MODEL_KEY, modelSel.value); } catch {}
     });
